@@ -9,13 +9,20 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "config": {
+        "googleMapsApiKey":  "AIzaSyCgGcTsyAFn0cEBOoJurt3P7uVH2OXCLXA"
+        },
+      "supportsTablet": true,
+      "bundleIdentifier": "com.Hagana.haganaproj"
+
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.Hagana.haganaproj"
+
     },
     "web": {
       "bundler": "metro",
