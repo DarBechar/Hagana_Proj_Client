@@ -21,10 +21,6 @@ const Dropdown = forwardRef(({ onChangeValue, onToggle, hasError }, ref) => {
   useImperativeHandle(ref, () => ({
     resetDropdown: () => {
       setValue(null);
-      if (onChangeValue) {
-        onChangeValue(null);
-      }
-      console.log("Dropdown has been reset");
     },
   }));
 

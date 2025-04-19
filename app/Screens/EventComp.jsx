@@ -54,7 +54,7 @@ export default function EventComp() {
   // Track validation errors
   const [errors, setErrors] = useState({
     eventTypeCode: false,
-    EventDescription: false,
+    description: false,
   });
 
   //fetch data
@@ -215,14 +215,14 @@ export default function EventComp() {
     // Reset previous errors
     setErrors({
       eventTypeCode: false,
-      EventDescription: false,
+      description: false,
     });
 
     // Check for required fields
     let hasErrors = false;
     const newErrors = {
       eventTypeCode: false,
-      EventDescription: false,
+      description: false,
     };
 
     if (!eventForm.eventTypeCode) {
@@ -400,27 +400,25 @@ export default function EventComp() {
             textAlign={"right"}
             placeholder={"בית העם"}
             inputChange={(value) => handleInputChange("locationName", value)}
+            value={eventForm.locationName}
           />
         </View>
 
         <View style={styles.section}>
           <Text style={styles.title}>
             תיאור האירוע
-            {errors.EventDescription && (
-              <Text style={styles.errorText}> *</Text>
-            )}
+            {errors.description && <Text style={styles.errorText}> *</Text>}
           </Text>
           <FormInputComp
             text={""}
             type={"multiLine"}
             textAlign={"right"}
             placeholder={"מה קרה? מה המצב? מה קורה עכשיו? מה צריך לעשות?"}
-            inputChange={(value) =>
-              handleInputChange("EventDescription", value)
-            }
-            hasError={errors.EventDescription}
+            inputChange={(value) => handleInputChange("description", value)}
+            value={eventForm.description}
+            hasError={errors.description}
           />
-          {errors.EventDescription && (
+          {errors.description && (
             <Text style={styles.errorMessage}>נא להזין תיאור אירוע</Text>
           )}
         </View>
@@ -470,6 +468,7 @@ export default function EventComp() {
             type={"singleLine"}
             textAlign={"right"}
             placeholder={"אברהם אברהמי"}
+            value={eventForm.ReporterName}
             inputChange={(value) => handleInputChange("ReporterName", value)}
           />
         </View>
@@ -481,6 +480,7 @@ export default function EventComp() {
             type={"singleLine"}
             textAlign={"right"}
             placeholder={"xxx-xxxxxxx"}
+            value={eventForm.ReporterPhoneNumber}
             inputChange={(value) =>
               handleInputChange("ReporterPhoneNumber", value)
             }
@@ -494,6 +494,7 @@ export default function EventComp() {
             type={"multiLine"}
             textAlign={"right"}
             placeholder={"האם יש משהו נוסף שצריך לדעת על האירוע הזה?"}
+            value={eventForm.ReportNotes}
             inputChange={(value) => handleInputChange("ReportNotes", value)}
           />
         </View>
