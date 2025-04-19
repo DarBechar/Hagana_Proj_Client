@@ -20,11 +20,12 @@ import User, { API_URL } from "../Constants/Utils";
 export default function EventComp() {
   //navigation
   const navigation = useNavigation();
+
   //refs
   const mapRef = useRef(null);
   const dropdownRef = useRef(null);
 
-  //state
+  //state variables
   const [eventForm, setEventForm] = useState({
     eventName: "",
     openingDate: new Date(),
@@ -58,8 +59,8 @@ export default function EventComp() {
   });
 
   //fetch data
-  // Fetch tag data from the server when component mounts
   useEffect(() => {
+    // Fetch tag data from the server when component mounts
     fetchEventStatus();
     fetchAthorities();
   }, []);

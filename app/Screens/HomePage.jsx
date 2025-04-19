@@ -1,27 +1,53 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
   Image,
+  Alert,
 } from "react-native";
 import {
   Ionicons,
   MaterialIcons,
   MaterialCommunityIcons,
-  FontAwesome5,
 } from "@expo/vector-icons";
 import StatusIndicator from "../Components/StatusIndicatorComp";
 import EmergencyAlertModal from "../Components/EmergencyAlertModal";
-
 import User from "../Constants/Utils";
+import { useNavigation } from "@react-navigation/native";
+import { useEmergency } from "../Navigation";
 
 const HomeScreen = () => {
+  //state variables
+  const { hasActiveEmergency, activeEvent, refreshEmergencyStatus } =
+    useEmergency();
+
   const [modalVisible, setModalVisible] = useState(false);
+  const villageStatus = hasActiveEmergency ? "emergency" : "normal";
+
+  const navigation = useNavigation();
+
+  const handleStatusPress = () => {
+    if (activeEvent) {
+      // Navigate to event details screen
+      navigation.navigate("אירוע חירום", { event: activeEvent });
+    }
+  };
+
+  useEffect(() => {
+    refreshEmergencyStatus();
+
+    // Set up interval for regular checks (every 30 seconds)
+    const intervalId = setInterval(() => {
+      refreshEmergencyStatus();
+    }, 30000); // 30 seconds
+
+    // Clean up interval when component unmounts
+    return () => clearInterval(intervalId);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -37,8 +63,22 @@ const HomeScreen = () => {
 
       {/* Status Bar */}
 
-      <StatusIndicator status="normal" />
-
+      <TouchableOpacity
+        activeOpacity={activeEvent ? 0.7 : 1}
+        onPress={handleStatusPress}
+      >
+        <StatusIndicator status={villageStatus} />
+        {activeEvent && (
+          <Text
+            style={{
+              textAlign: "center",
+              fontSize: 12,
+              color: "#d32f2f",
+              marginTop: 5,
+            }}
+          ></Text>
+        )}
+      </TouchableOpacity>
       {/* Menu Items */}
       <View style={styles.menuContainer}>
         {/* First Menu Item */}
