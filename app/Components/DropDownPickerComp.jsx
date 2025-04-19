@@ -66,7 +66,14 @@ export default function Dropdown({ onChangeValue, onToggle, hasError }) {
 
   const handleValueChange = (selectedValue) => {
     if (onChangeValue) {
-      onChangeValue(selectedValue);
+      const selectedItem = data.find((item) => item.value === selectedValue);
+
+      // Pass both value and label to the parent component
+      if (selectedItem) {
+        onChangeValue(selectedValue, selectedItem.label);
+      } else {
+        onChangeValue(selectedValue, null);
+      }
     }
   };
 

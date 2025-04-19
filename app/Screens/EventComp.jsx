@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Dropdown from "../Components/DropDownPickerComp";
@@ -21,7 +22,6 @@ import { API_URL } from "../Constants/Utils";
 export default function EventComp() {
   const navigation = useNavigation();
 
-  // Define states first before using them
   const [eventType, setEventType] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedEventStatus, setSelectedEventStatus] = useState(null);
@@ -31,27 +31,28 @@ export default function EventComp() {
   const [isEventStatusDataLoading, setIsEventStatusDataLoading] =
     useState(true);
   const [isAuthorityDataLoading, setIsAuthorityDataLoading] = useState(true);
+  const [eventName, setEventName] = useState("");
 
   // Track validation errors
   const [errors, setErrors] = useState({
     eventTypeCode: false,
-    EventDescription: false,
+    description: false,
   });
 
-  // Define event form with proper initial values
   const [eventForm, setEventForm] = useState({
-    eventDate: new Date(),
-    ReporterName: "",
-    ReporterPhoneNumber: "",
-    EventDescription: "",
-    eventNotes: "",
-    Longtitude: null,
-    Latitude: null,
-    LocationDescription: "",
-    AuthorityCode: null,
-    userID: User.id,
-    eventTypeCode: null,
-    EventStatus: null,
+    eventName: "",
+    openingDate: new Date(),
+    description: "",
+    attachedReports: [],
+    creatorUserID: User.id,
+    eventStatusCode: null,
+    isActive: true,
+    activatedAt: new Date(),
+    deactivatedAt: null,
+    locationLatitude: null,
+    locationLongitude: null,
+    locationName: "",
+    affectedAreaRadius: 0,
   });
 
   // Fetch tag data from the server when component mounts
@@ -107,15 +108,21 @@ export default function EventComp() {
   };
 
   const handleEventStatusChange = (selectedIds) => {
-    handleInputChange("EventStatus", selectedIds);
+    setEventForm((prevState) => ({
+      ...prevState,
+      eventStatusCode: selectedIds,
+    }));
     setSelectedEventStatus(selectedIds);
-    console.log("Selected tags:", selectedIds);
+    console.log("Selected status:", selectedIds);
   };
 
   const handleAthorityChange = (selectedIds) => {
-    handleInputChange("AuthorityCode", selectedIds);
+    setEventForm((prevState) => ({
+      ...prevState,
+      authorityCode: selectedIds,
+    }));
     setSelectedAuthority(selectedIds);
-    console.log("Selected tags:", selectedIds);
+    console.log("Selected authority:", selectedIds);
   };
 
   const handleInputChange = (field, value) => {
@@ -125,14 +132,10 @@ export default function EventComp() {
     }));
 
     // Clear error when field is filled
-    if (
-      field === "EventDescription" &&
-      value.trim() !== "" &&
-      errors.EventDescription
-    ) {
+    if (field === "description" && value.trim() !== "" && errors.description) {
       setErrors((prev) => ({
         ...prev,
-        EventDescription: false,
+        description: false,
       }));
     }
   };
@@ -180,16 +183,22 @@ export default function EventComp() {
   const handleLocationChange = (location) => {
     setEventForm((prevState) => ({
       ...prevState,
+      locationLongitude: location.longitude,
+      locationLatitude: location.latitude,
+      // Keep these for backward compatibility
       Longtitude: location.longitude,
       Latitude: location.latitude,
     }));
   };
 
-  const handleEventTypeChange = (selectedEventType) => {
+  const handleEventTypeChange = (selectedEventType, selectedLabel) => {
+    let NewEventName = `${selectedLabel} | ${Date.now()}`;
+    setEventName(NewEventName);
     setEventType(selectedEventType);
     setEventForm((prevState) => ({
       ...prevState,
       eventTypeCode: selectedEventType,
+      eventName: NewEventName, // Also set this on the form
     }));
 
     // If there was an error before, clear it when user selects a value
@@ -200,21 +209,66 @@ export default function EventComp() {
       }));
     }
 
-    console.log("Selected event type:", selectedEventType);
+    console.log(
+      "Selected event type:",
+      selectedEventType,
+      "Label:",
+      selectedLabel
+    );
+  };
+
+  // Function to test server connection - useful for debugging
+  const testServerConnection = async () => {
+    try {
+      // Adjust the URL based on platform
+      let url = "https://localhost:7036/api/Event";
+      if (Platform.OS === "android") {
+        url = "https://10.0.2.2:7036/api/Event";
+      }
+
+      console.log("Testing connection to:", url);
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        console.log("Successfully connected to the server!");
+        Alert.alert(
+          "Connection Success",
+          "Successfully connected to the server"
+        );
+      } else {
+        console.error("Server returned an error:", response.status);
+        Alert.alert(
+          "Connection Error",
+          `Server returned status: ${response.status}`
+        );
+      }
+    } catch (error) {
+      console.error("Failed to connect to the server:", error);
+      Alert.alert(
+        "Connection Failed",
+        `Could not connect to the server.\nError: ${error.message}\n\nMake sure your server is running and accessible.`
+      );
+    }
   };
 
   const handleSubmit = () => {
     // Reset previous errors
     setErrors({
       eventTypeCode: false,
-      EventDescription: false,
+      description: false,
     });
 
     // Check for required fields
     let hasErrors = false;
     const newErrors = {
       eventTypeCode: false,
-      EventDescription: false,
+      description: false,
     };
 
     if (!eventForm.eventTypeCode) {
@@ -222,11 +276,9 @@ export default function EventComp() {
       hasErrors = true;
     }
 
-    if (
-      !eventForm.EventDescription ||
-      eventForm.EventDescription.trim() === ""
-    ) {
-      newErrors.EventDescription = true;
+    // This check now looks at the description field directly
+    if (!eventForm.description || eventForm.description.trim() === "") {
+      newErrors.description = true;
       hasErrors = true;
     }
 
@@ -235,8 +287,62 @@ export default function EventComp() {
 
     // If no errors, proceed with submission
     if (!hasErrors) {
-      console.log("Form submitted with data:", eventForm);
-      navigation.navigate("בית");
+      // Adjust the URL based on platform
+      let apiUrl = "https://localhost:7036/api/Event";
+      if (Platform.OS === "android") {
+        apiUrl = "https://10.0.2.2:7036/api/Event";
+      }
+
+      const eventPayload = {
+        eventCode: 0,
+        eventName: eventName || "New Event",
+        openingDate: new Date().toISOString(),
+        description: eventForm.description, // Fixed: Use the correct field name
+        attachedReports: [],
+        creatorUserID: parseInt(User.id),
+        eventStatusCode: eventForm.eventStatusCode,
+        isActive: true,
+        activatedAt: new Date().toISOString(),
+        deactivatedAt: null,
+        locationLatitude: eventForm.locationLatitude,
+        locationLongitude: eventForm.locationLongitude,
+        locationName: eventForm.locationName || "Unknown",
+        affectedAreaRadius: 0,
+      };
+
+      console.log("Sending event payload:", eventPayload);
+
+      fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(eventPayload),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Network response error: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log("Event created successfully:", data);
+          Alert.alert("האירוע נוצר בהצלחה", "האירוע שלך נוצר בהצלחה", [
+            {
+              text: "אוקי",
+              onPress: () => navigation.navigate("בית"),
+            },
+          ]);
+        })
+        .catch((error) => {
+          console.error("Error creating event:", error);
+          Alert.alert(
+            "שגיאה",
+            "לא ניתן ליצור את האירוע. אנא נסה שוב מאוחר יותר.",
+            [{ text: "אוקי", style: "default" }]
+          );
+        });
     } else {
       // Show alert to user
       Alert.alert("שגיאת טופס", "אנא מלא את כל השדות הנדרשים", [
@@ -285,21 +391,17 @@ export default function EventComp() {
         <View style={styles.section}>
           <Text style={styles.title}>
             תיאור האירוע
-            {errors.EventDescription && (
-              <Text style={styles.errorText}> *</Text>
-            )}
+            {errors.description && <Text style={styles.errorText}> *</Text>}
           </Text>
           <FormInputComp
             text={""}
             type={"multiLine"}
             textAlign={"right"}
             placeholder={"מה קרה? מה המצב? מה קורה עכשיו? מה צריך לעשות?"}
-            inputChange={(value) =>
-              handleInputChange("EventDescription", value)
-            }
-            hasError={errors.EventDescription}
+            inputChange={(value) => handleInputChange("description", value)}
+            hasError={errors.description}
           />
-          {errors.EventDescription && (
+          {errors.description && (
             <Text style={styles.errorMessage}>נא להזין תיאור אירוע</Text>
           )}
         </View>
@@ -448,10 +550,6 @@ const styles = StyleSheet.create({
   },
   nudgeDown: {
     marginTop: 20,
-  },
-  map: {
-    width: "100%",
-    height: "100%",
   },
   mapContainer: {
     height: 400,
