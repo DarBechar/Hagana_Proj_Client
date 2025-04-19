@@ -148,9 +148,6 @@ const Dropdown = forwardRef(({ onChangeValue, onToggle, hasError }, ref) => {
           fontWeight: "bold",
           textAlign: "right",
         }}
-        ArrowDownIconComponent={({ style }) => null} // Hide default down arrow
-        ArrowUpIconComponent={({ style }) => null} // Hide default up arrow
-        TickIconComponent={({ style }) => null} // Hide default tick icon
         open={open}
         rtl={true}
         value={value}
