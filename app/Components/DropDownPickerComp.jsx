@@ -60,6 +60,20 @@ export default function Dropdown() {
         setLoading(false);
       });
   };
+
+  const handleValueChange = (selectedValue) => {
+    if (onChangeValue) {
+      const selectedItem = data.find((item) => item.value === selectedValue);
+
+      // Pass both value and label to the parent component
+      if (selectedItem) {
+        onChangeValue(selectedValue, selectedItem.label);
+      } else {
+        onChangeValue(selectedValue, null);
+      }
+    }
+  };
+
   return (
     <View
       style={{
