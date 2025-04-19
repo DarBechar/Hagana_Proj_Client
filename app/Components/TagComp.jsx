@@ -14,7 +14,7 @@ export default function TagComp({
 }) {
   const [selected, setSelected] = useState(initialSelected);
 
-  // Update selected state if initialSelected changes
+  // Update selected state when initialSelected prop changes
   useEffect(() => {
     setSelected(initialSelected);
   }, [initialSelected]);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   SafeAreaView,
   Text,
@@ -15,13 +15,31 @@ import FormInputComp from "../Components/FormInputComp";
 import TagListComp from "../Components/TagListComp";
 import PrimaryBtnComp from "../Components/PrimaryBtnComp";
 import SecondaryBtnComp from "../Components/SecondaryBtnComp";
-import User from "../Constants/Utils";
-import { API_URL } from "../Constants/Utils";
+import User, { API_URL } from "../Constants/Utils";
 
 export default function EventComp() {
+  //navigation
   const navigation = useNavigation();
+  //refs
+  const mapRef = useRef(null);
+  const dropdownRef = useRef(null);
 
-  // Define states first before using them
+  //state
+  const [eventForm, setEventForm] = useState({
+    eventName: "",
+    openingDate: new Date(),
+    description: "",
+    attachedReports: [],
+    creatorUserID: User.id,
+    eventStatusCode: null,
+    isActive: true,
+    activatedAt: new Date(),
+    deactivatedAt: null,
+    locationLatitude: null,
+    locationLongitude: null,
+    locationName: "",
+    affectedAreaRadius: 0,
+  });
   const [eventType, setEventType] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedEventStatus, setSelectedEventStatus] = useState(null);
@@ -38,22 +56,7 @@ export default function EventComp() {
     EventDescription: false,
   });
 
-  // Define event form with proper initial values
-  const [eventForm, setEventForm] = useState({
-    eventDate: new Date(),
-    ReporterName: "",
-    ReporterPhoneNumber: "",
-    EventDescription: "",
-    eventNotes: "",
-    Longtitude: null,
-    Latitude: null,
-    LocationDescription: "",
-    AuthorityCode: null,
-    userID: User.id,
-    eventTypeCode: null,
-    EventStatus: null,
-  });
-
+  //fetch data
   // Fetch tag data from the server when component mounts
   useEffect(() => {
     fetchEventStatus();
@@ -102,41 +105,6 @@ export default function EventComp() {
     }
   };
 
-  const handleDropdownToggle = (isOpen) => {
-    setIsDropdownOpen(isOpen);
-  };
-
-  const handleEventStatusChange = (selectedIds) => {
-    handleInputChange("EventStatus", selectedIds);
-    setSelectedEventStatus(selectedIds);
-    console.log("Selected tags:", selectedIds);
-  };
-
-  const handleAthorityChange = (selectedIds) => {
-    handleInputChange("AuthorityCode", selectedIds);
-    setSelectedAuthority(selectedIds);
-    console.log("Selected tags:", selectedIds);
-  };
-
-  const handleInputChange = (field, value) => {
-    setEventForm((prevState) => ({
-      ...prevState,
-      [field]: value,
-    }));
-
-    // Clear error when field is filled
-    if (
-      field === "EventDescription" &&
-      value.trim() !== "" &&
-      errors.EventDescription
-    ) {
-      setErrors((prev) => ({
-        ...prev,
-        EventDescription: false,
-      }));
-    }
-  };
-
   const fetchAthorities = async () => {
     setIsAuthorityDataLoading(true);
     try {
@@ -177,11 +145,49 @@ export default function EventComp() {
     }
   };
 
+  //handlers
+  const handleDropdownToggle = (isOpen) => {
+    setIsDropdownOpen(isOpen);
+  };
+
+  const handleEventStatusChange = (selectedIds) => {
+    setEventForm((prevState) => ({
+      ...prevState,
+      eventStatusCode: selectedIds,
+    }));
+    setSelectedEventStatus(selectedIds);
+    console.log("Selected status:", selectedIds);
+  };
+
+  const handleAthorityChange = (selectedIds) => {
+    setEventForm((prevState) => ({
+      ...prevState,
+      authorityCode: selectedIds,
+    }));
+    setSelectedAuthority(selectedIds);
+    console.log("Selected authority:", selectedIds);
+  };
+
+  const handleInputChange = (field, value) => {
+    setEventForm((prevState) => ({
+      ...prevState,
+      [field]: value,
+    }));
+
+    // Clear error when field is filled
+    if (field === "description" && value.trim() !== "" && errors.description) {
+      setErrors((prev) => ({
+        ...prev,
+        description: false,
+      }));
+    }
+  };
+
   const handleLocationChange = (location) => {
     setEventForm((prevState) => ({
       ...prevState,
-      Longtitude: location.longitude,
-      Latitude: location.latitude,
+      locationLongitude: location.longitude,
+      locationLatitude: location.latitude,
     }));
   };
 
@@ -190,6 +196,7 @@ export default function EventComp() {
     setEventForm((prevState) => ({
       ...prevState,
       eventTypeCode: selectedEventType,
+      eventName: NewEventName,
     }));
 
     // If there was an error before, clear it when user selects a value
@@ -200,7 +207,12 @@ export default function EventComp() {
       }));
     }
 
-    console.log("Selected event type:", selectedEventType);
+    console.log(
+      "Selected event type:",
+      selectedEventType,
+      "Label:",
+      selectedLabel
+    );
   };
 
   const handleSubmit = () => {
@@ -222,21 +234,66 @@ export default function EventComp() {
       hasErrors = true;
     }
 
-    if (
-      !eventForm.EventDescription ||
-      eventForm.EventDescription.trim() === ""
-    ) {
-      newErrors.EventDescription = true;
+    if (!eventForm.description || eventForm.description.trim() === "") {
+      newErrors.description = true;
       hasErrors = true;
     }
 
-    // Update error state
     setErrors(newErrors);
 
     // If no errors, proceed with submission
     if (!hasErrors) {
-      console.log("Form submitted with data:", eventForm);
-      navigation.navigate("בית");
+      const apiUrl = `${API_URL}Event`;
+
+      const eventPayload = {
+        eventCode: 0,
+        eventName: eventName || "New Event",
+        openingDate: new Date().toISOString(),
+        description: eventForm.description, // Fixed: Use the correct field name
+        attachedReports: [],
+        creatorUserID: parseInt(User.id),
+        eventStatusCode: eventForm.eventStatusCode,
+        isActive: true,
+        activatedAt: new Date().toISOString(),
+        deactivatedAt: null,
+        locationLatitude: eventForm.locationLatitude,
+        locationLongitude: eventForm.locationLongitude,
+        locationName: eventForm.locationName || "Unknown",
+        affectedAreaRadius: 0,
+      };
+
+      fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(eventPayload),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Network response error: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log("Event created successfully:", data);
+          resetForm();
+          Alert.alert("האירוע נוצר בהצלחה", "האירוע שלך נוצר בהצלחה", [
+            {
+              text: "אוקי",
+              onPress: () => navigation.navigate("בית"),
+            },
+          ]);
+        })
+        .catch((error) => {
+          console.error("Error creating event:", error);
+          Alert.alert(
+            "שגיאה",
+            "לא ניתן ליצור את האירוע. אנא נסה שוב מאוחר יותר.",
+            [{ text: "אוקי", style: "default" }]
+          );
+        });
     } else {
       // Show alert to user
       Alert.alert("שגיאת טופס", "אנא מלא את כל השדות הנדרשים", [
@@ -246,8 +303,64 @@ export default function EventComp() {
   };
 
   const handleCancel = () => {
-    console.log("Form submission cancelled.");
+    resetForm();
     navigation.navigate("בית");
+  };
+
+  const resetForm = () => {
+    // Reset all form fields to initial values
+    setEventType(null);
+    setSelectedEventStatus(null);
+    setSelectedAuthority(null);
+    setEventName("");
+
+    // Reset the form state
+    setEventForm({
+      eventName: "",
+      openingDate: new Date(),
+      description: "",
+      attachedReports: [],
+      creatorUserID: User.id,
+      eventStatusCode: null,
+      isActive: true,
+      activatedAt: new Date(),
+      deactivatedAt: null,
+      locationLatitude: null,
+      locationLongitude: null,
+      locationName: "",
+      affectedAreaRadius: 0,
+      ReporterName: "",
+      ReporterPhoneNumber: "",
+      ReportNotes: "",
+    });
+
+    // Reset errors
+    setErrors({
+      eventTypeCode: false,
+      description: false,
+    });
+    if (mapRef.current) {
+      mapRef.current.resetMap();
+    }
+    if (dropdownRef.current) {
+      dropdownRef.current.resetDropdown();
+    }
+    // Force TagListComp components to reset by updating their data
+    if (eventStatusTags.length > 0) {
+      const resetStatusTags = eventStatusTags.map((tag) => ({
+        ...tag,
+        initialSelected: false,
+      }));
+      setEventStatusTags(resetStatusTags);
+    }
+
+    if (athorityData.length > 0) {
+      const resetAuthorityData = athorityData.map((tag) => ({
+        ...tag,
+        initialSelected: false,
+      }));
+      setAuthorityData(resetAuthorityData);
+    }
   };
 
   return (
@@ -266,6 +379,7 @@ export default function EventComp() {
             {errors.eventTypeCode && <Text style={styles.errorText}> *</Text>}
           </Text>
           <Dropdown
+            ref={dropdownRef}
             onToggle={handleDropdownToggle}
             onChangeValue={handleEventTypeChange}
             hasError={errors.eventTypeCode}
@@ -278,8 +392,19 @@ export default function EventComp() {
         <View style={styles.section}>
           <Text style={styles.title}>מיקום האירוע</Text>
           <View style={styles.mapContainer}>
-            <MapComp setLocation={handleLocationChange}></MapComp>
+            <MapComp ref={mapRef} setLocation={handleLocationChange}></MapComp>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.title}>תאר את מיקום האירוע</Text>
+          <FormInputComp
+            text={""}
+            type={"singleLine"}
+            textAlign={"right"}
+            placeholder={"בית העם"}
+            inputChange={(value) => handleInputChange("locationName", value)}
+          />
         </View>
 
         <View style={styles.section}>
@@ -341,6 +466,7 @@ export default function EventComp() {
             />
           )}
         </View>
+
         <View style={styles.section}>
           <Text style={styles.title}>שם המדווח</Text>
           <FormInputComp
@@ -422,7 +548,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   title: {
-    marginTop: 10,
+    marginRight: 10,
+    marginTop: 5,
     fontSize: 18,
     fontWeight: "semibold",
     marginBottom: 10,
@@ -439,7 +566,8 @@ const styles = StyleSheet.create({
   },
   section: {
     width: "100%",
-    padding: 10,
+    padding: 5,
+    marginVertical: 3,
   },
   scrollViewContent: {
     flexGrow: 1,
@@ -449,10 +577,6 @@ const styles = StyleSheet.create({
   nudgeDown: {
     marginTop: 20,
   },
-  map: {
-    width: "100%",
-    height: "100%",
-  },
   mapContainer: {
     height: 400,
     marginBottom: 80,
@@ -461,8 +585,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 20,
-    marginBottom: 40,
+    marginTop: 15,
+    marginBottom: 20,
   },
   errorText: {
     color: "red",
@@ -476,12 +600,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   loadingContainer: {
-    padding: 20,
+    padding: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 5,
     color: "#666",
     fontSize: 14,
   },

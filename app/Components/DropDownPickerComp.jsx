@@ -1,16 +1,32 @@
-import { View } from "react-native";
+import React, {
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import { View, Text } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
-import React, { useState } from "react";
-import { useEffect } from "react";
 import { API_URL } from "../Constants/Utils";
 
-export default function Dropdown({ onChangeValue, onToggle, hasError }) {
+const Dropdown = forwardRef(({ onChangeValue, onToggle, hasError }, ref) => {
+  //state
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(null);
   const [items, setItems] = useState([]);
+
+  // Expose resetDropdown method to parent component
+  useImperativeHandle(ref, () => ({
+    resetDropdown: () => {
+      setValue(null);
+      if (onChangeValue) {
+        onChangeValue(null);
+      }
+      console.log("Dropdown has been reset");
+    },
+  }));
 
   useEffect(() => {
     fetchEventTypes();
@@ -112,6 +128,29 @@ export default function Dropdown({ onChangeValue, onToggle, hasError }) {
         ArrowDownIconComponent={({ style }) => null} // Hide default down arrow
         ArrowUpIconComponent={({ style }) => null} // Hide default up arrow
         TickIconComponent={({ style }) => null} // Hide default tick icon
+        searchContainerStyle={{
+          borderBottomColor: "#F5F5F5",
+          flexDirection: "row-reverse",
+        }}
+        searchTextInputStyle={{
+          textAlign: "right",
+          writingDirection: "rtl",
+          borderWidth: 0,
+        }}
+        placeholderStyle={{
+          textAlign: "right",
+          color: "#999",
+        }}
+        selectedItemContainerStyle={{
+          flexDirection: "row-reverse",
+        }}
+        selectedItemLabelStyle={{
+          fontWeight: "bold",
+          textAlign: "right",
+        }}
+        ArrowDownIconComponent={({ style }) => null} // Hide default down arrow
+        ArrowUpIconComponent={({ style }) => null} // Hide default up arrow
+        TickIconComponent={({ style }) => null} // Hide default tick icon
         open={open}
         rtl={true}
         value={value}
@@ -135,6 +174,10 @@ export default function Dropdown({ onChangeValue, onToggle, hasError }) {
           "#e9c46a",
         ]}
       />
+      {loading && <Text style={{ marginTop: 5, color: "#666" }}>טוען...</Text>}
+      {error && <Text style={{ marginTop: 5, color: "red" }}>{error}</Text>}
     </View>
   );
-}
+});
+
+export default Dropdown;

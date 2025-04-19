@@ -16,6 +16,7 @@ const User = {
   PasswordHash: "hashedpassword",
 };
 
-export { API_URL };
+const API_URL = "https://proj.ruppin.ac.il/bgroup4/test2/tar1/api/";
 
+export { API_URL };
 export default User;

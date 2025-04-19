@@ -8,6 +8,7 @@ export default function FormInputComp({
   placeholder,
   inputChange,
   hasError = false,
+  value = "", // Add value prop with default
 }) {
   return (
     <View style={styles.container}>
@@ -21,6 +22,7 @@ export default function FormInputComp({
           ]}
           placeholder={placeholder}
           onChangeText={inputChange}
+          value={value} // Use the value prop
           returnKeyType="done"
         />
       ) : (
@@ -32,6 +34,7 @@ export default function FormInputComp({
           ]}
           placeholder={placeholder}
           onChangeText={inputChange}
+          value={value} // Use the value prop
           multiline={true}
           numberOfLines={4}
           textAlignVertical="top"
@@ -51,7 +54,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 18,
-    marginBottom: 10,
+    marginBottom: 5, // Reduced from 10
     textAlign: "right",
     fontWeight: "500",
   },

@@ -14,50 +14,56 @@ export default function TagListComp({
   activeTextColor = "white",
   inactiveTextColor = "#333",
 }) {
-  const [selectedTags, setSelectedTags] = useState(
-    tags.reduce((acc, tag) => {
-      acc[tag.id] = tag.initialSelected || false;
-      return acc;
-    }, {})
-  );
+  // Initialize the selected tags state
+  const [selectedTags, setSelectedTags] = useState({});
+
+  // Update selected tags when the tags prop changes
+  useEffect(() => {
+    if (tags && tags.length > 0) {
+      const initialSelectedTags = tags.reduce((acc, tag) => {
+        acc[tag.id] = tag.initialSelected || false;
+        return acc;
+      }, {});
+      setSelectedTags(initialSelectedTags);
+    }
+  }, [tags]);
 
   const handleTagPress = (id, selected) => {
-    let newSelectedTags = { ...selectedTags };
+    let newSelectedTags = {};
 
-    if (!multiSelect) {
-      // If not multiSelect, deselect all other tags
-      Object.keys(newSelectedTags).forEach((tagId) => {
-        newSelectedTags[tagId] = false;
+    if (multiSelect) {
+      // For multiple selection, keep existing selections and toggle the current one
+      newSelectedTags = { ...selectedTags };
+      newSelectedTags[id] = selected;
+    } else {
+      // For single selection, reset all tags to unselected
+      // and only set the clicked one to selected if it's being selected
+      tags.forEach((tag) => {
+        newSelectedTags[tag.id] = false;
       });
+
+      if (selected) {
+        newSelectedTags[id] = true;
+      }
     }
 
-    newSelectedTags[id] = selected;
     setSelectedTags(newSelectedTags);
 
+    // Notify parent component of selection change
     if (onSelectionChange) {
       if (multiSelect) {
-        onSelectionChange(
-          Object.keys(newSelectedTags).filter((key) => newSelectedTags[key])
-        );
-      } else {
-        const selectedId = Object.keys(newSelectedTags).find(
+        // For multi-select, return array of all selected IDs
+        const selectedIds = Object.keys(newSelectedTags).filter(
           (key) => newSelectedTags[key]
         );
-        onSelectionChange(selectedId || null);
+        onSelectionChange(selectedIds);
+      } else {
+        // For single-select, return the selected ID or null
+        const selectedId = selected ? id : null;
+        onSelectionChange(selectedId);
       }
     }
   };
-
-  useEffect(() => {
-    if (tags && tags.length > 0) {
-      setSelectedTags(
-        tags.reduce((acc, tag) => {
-          acc[tag.id] = tag.initialSelected || false;
-          return acc;
-        }, {})
-      );
-    }
-  }, [tags]);
 
   return (
     <View style={[styles.groupContainer, containerStyle]}>
@@ -65,7 +71,7 @@ export default function TagListComp({
         <TagComp
           key={tag.id}
           label={tag.label}
-          initialSelected={selectedTags[tag.id]}
+          initialSelected={selectedTags[tag.id] || false}
           onPress={(selected) => handleTagPress(tag.id, selected)}
           style={[styles.tag, tagStyle]}
           textStyle={textStyle}

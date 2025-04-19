@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import {
   StyleSheet,
   View,
@@ -11,7 +17,7 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 
-export default function MapComp({ setLocation }) {
+const MapComp = forwardRef(({ setLocation }, ref) => {
   // Ruppin Academic Center coordinates as fallback
   const ruppinCoords = {
     latitude: 32.3015,
@@ -30,16 +36,53 @@ export default function MapComp({ setLocation }) {
     useState(false);
   const mapRef = useRef(null);
 
-  // Use a ref to track if this is the initial render
-  const isInitialMount = useRef(true);
+  // Expose resetMap method to parent component
+  useImperativeHandle(ref, () => ({
+    resetMap: () => {
+      // Reset to default coordinates
+      const defaultCoords = {
+        latitude: 32.3015,
+        longitude: 34.851,
+      };
 
-  // Direct updates instead of using useEffect
+      // Reset marker position and map region
+      setMarkerPosition(defaultCoords);
+      setRegion({
+        ...defaultCoords,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+      setSearchQuery("");
+
+      // Notify parent component
+      if (setLocation) {
+        setLocation(defaultCoords);
+      }
+
+      // Animate map to default position
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(
+          {
+            ...defaultCoords,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          },
+          1000
+        );
+      }
+
+      console.log("Map has been reset to default position");
+    },
+  }));
+
+  // Update parent location when marker position changes
   const updateParentLocation = (latitude, longitude) => {
     if (setLocation) {
       setLocation({
         latitude,
         longitude,
       });
+      console.log("Location updated:", { latitude, longitude });
     }
   };
 
@@ -177,7 +220,6 @@ export default function MapComp({ setLocation }) {
 
       <MapView
         ref={mapRef}
-        // provider={PROVIDER_GOOGLE}
         style={styles.map}
         region={region}
         onRegionChangeComplete={setRegion}
@@ -202,7 +244,7 @@ export default function MapComp({ setLocation }) {
       </Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -252,3 +294,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+export default MapComp; // Export at the end after defining the component with forwardRef
