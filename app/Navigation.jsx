@@ -9,6 +9,9 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import EventComp from "./Screens/EventComp";
+import Report from "./Screens/Report";
+import NavReport from "./Screens/NavReport";
+
 
 const Tab = createBottomTabNavigator();
 
@@ -64,7 +67,7 @@ function TabGroup() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="בית" component={HomePage} />
+      <Tab.Screen name="בית" component={NavReport} />
       <Tab.Screen name="אנשי קשר" component={ContactsScreen} />
       <Tab.Screen name="הוספה" component={EventComp} />
 

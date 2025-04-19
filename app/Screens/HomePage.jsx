@@ -17,11 +17,17 @@ import {
 } from "@expo/vector-icons";
 import StatusIndicator from "../Components/StatusIndicatorComp";
 import EmergencyAlertModal from "../Components/EmergencyAlertModal";
+import Report from "../Screens/Report";
+import { useNavigation } from '@react-navigation/native';
+
 
 import User from "../Constants/Utils";
 
 const HomeScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
+  const navigation = useNavigation(); // השתמש ב-hook כדי לקבל גישה לאובייקט הניווט
+  
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -55,12 +61,24 @@ const HomeScreen = () => {
           </View>
         </TouchableOpacity>
 
+
+         {/* דיווח */}
+      <View style={styles.divider} />
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Report')}>
+          <View style={styles.menuContent}>
+          <Text style={styles.menuText}>יצירת דיווח חדש</Text>
+         <View style={[styles.iconContainer, { backgroundColor: "#f9ebeb" }]}>
+         <MaterialCommunityIcons name="egg" size={24} color="#d64e4e" />
+    </View>
+  </View>
+          </TouchableOpacity>
+         
+
         {/* Divider */}
         <View style={styles.divider} />
-
         {/* Second Menu Item */}
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuContent}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('FilledReport')}>
+        <View style={styles.menuContent}>
             <Text style={styles.menuText}>דוחות</Text>
             <View
               style={[styles.iconContainer, { backgroundColor: "#e3f1fa" }]}
@@ -127,6 +145,9 @@ const HomeScreen = () => {
             </View>
           </View>
         </TouchableOpacity>
+
+              
+
       </View>
       <View>
         <EmergencyAlertModal
@@ -139,6 +160,9 @@ const HomeScreen = () => {
           }}
         />
       </View>
+  
+
+
       {/* Bottom Tab Navigator */}
       {/* <View style={styles.tabNavigator}>
         <TouchableOpacity style={styles.tabItem}>

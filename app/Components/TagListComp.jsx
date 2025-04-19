@@ -1,5 +1,5 @@
 import { View, StyleSheet } from "react-native";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import TagComp from "./TagComp";
 
 export default function TagListComp({
@@ -20,7 +20,6 @@ export default function TagListComp({
       return acc;
     }, {})
   );
-
   const handleTagPress = (id, selected) => {
     let newSelectedTags = { ...selectedTags };
 
@@ -35,30 +34,11 @@ export default function TagListComp({
     setSelectedTags(newSelectedTags);
 
     if (onSelectionChange) {
-      if (multiSelect) {
-        onSelectionChange(
-          Object.keys(newSelectedTags).filter((key) => newSelectedTags[key])
-        );
-      } else {
-        const selectedId = Object.keys(newSelectedTags).find(
-          (key) => newSelectedTags[key]
-        );
-        onSelectionChange(selectedId || null);
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (tags && tags.length > 0) {
-      setSelectedTags(
-        tags.reduce((acc, tag) => {
-          acc[tag.id] = tag.initialSelected || false;
-          return acc;
-        }, {})
+      onSelectionChange(
+        Object.keys(newSelectedTags).filter((key) => newSelectedTags[key])
       );
     }
-  }, [tags]);
-
+  };
   return (
     <View style={[styles.groupContainer, containerStyle]}>
       {tags.map((tag) => (
@@ -67,7 +47,7 @@ export default function TagListComp({
           label={tag.label}
           initialSelected={selectedTags[tag.id]}
           onPress={(selected) => handleTagPress(tag.id, selected)}
-          style={[styles.tag, tagStyle]}
+          style={tagStyle}
           textStyle={textStyle}
           activeColor={activeColor}
           inactiveColor={inactiveColor}
@@ -85,7 +65,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 30,
     borderWidth: 1,
-    marginLeft: 8, // Changed from marginRight to marginLeft for RTL
+    marginRight: 8,
     marginBottom: 8,
     alignItems: "center",
     justifyContent: "center",
@@ -96,14 +76,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   groupContainer: {
-    flexDirection: "row-reverse", // Changed from "row" to "row-reverse" for RTL layout
+    flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-start",
-    alignItems: "flex-start",
-  },
-  tag: {
-    marginLeft: 8, // Set margin for spacing between tags
-    marginRight: 0,
-    marginBottom: 8,
+    alignItems: "right",
   },
 });

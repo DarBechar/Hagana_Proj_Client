@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Hagana_Proj_Client",
-    "slug": "Hagana_Proj_Client",
+    "name": "Hagana_Client",
+    "slug": "Hagana_Client",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,20 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "config": {
-        "googleMapsApiKey":  "AIzaSyCgGcTsyAFn0cEBOoJurt3P7uVH2OXCLXA"
-        },
-      "supportsTablet": true,
-      "bundleIdentifier": "com.Hagana.haganaproj"
-
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "package": "com.Hagana.haganaproj"
-
+      }
     },
     "web": {
       "bundler": "metro",

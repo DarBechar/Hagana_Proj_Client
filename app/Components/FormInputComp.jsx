@@ -1,76 +1,69 @@
-import React from "react";
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import { View, TextInput, Text, StyleSheet } from "react-native";
+import { useState, useEffect } from "react";
 
-export default function FormInputComp({
-  text,
-  type,
-  textAlign,
-  placeholder,
-  inputChange,
-  hasError = false,
-}) {
+export default function FormInputComp(props) {
+  const [inputHeight, setInputHeight] = useState(40);
+  const [textDirection, setTextDirection] = useState("rtl");
+
+  useEffect(() => {
+    if (props.type === "multiLine") {
+      setInputHeight(100);
+    } else {
+      setInputHeight(40);
+    }
+
+    // Handle text direction based on textAlign prop
+    if (props.textAlign === "ltr") {
+      setTextDirection("ltr");
+    } else {
+      setTextDirection("rtl");
+    }
+  }, [props.type, props.textAlign]);
+
   return (
-    <View style={styles.container}>
-      {text && <Text style={styles.label}>{text}</Text>}
-      {type === "singleLine" ? (
+    <View>
+      <View style={styles.section}>
+        <Text style={styles.title}>{props.text}</Text>
         <TextInput
+          placeholder={props.placeholder}
+          onChangeText={props.inputChange}
           style={[
             styles.input,
-            { textAlign: textAlign },
-            hasError && styles.inputError,
+            {
+              height: inputHeight,
+              writingDirection: textDirection,
+              textAlign: textDirection === "rtl" ? "right" : "left",
+            },
           ]}
-          placeholder={placeholder}
-          onChangeText={inputChange}
+          multiline={props.type === "multiLine"}
           returnKeyType="done"
+          blurOnSubmit={true}
         />
-      ) : (
-        <TextInput
-          style={[
-            styles.multiLineInput,
-            { textAlign: textAlign },
-            hasError && styles.inputError,
-          ]}
-          placeholder={placeholder}
-          onChangeText={inputChange}
-          multiline={true}
-          numberOfLines={4}
-          textAlignVertical="top"
-          textAlign={textAlign} // Important for placeholder alignment
-          writingDirection="rtl" // Forces RTL text direction
-          placeholderTextColor="#999" //
-        />
-      )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: "100%",
-    padding: 10,
-  },
-  label: {
+  title: {
     fontSize: 18,
-    marginBottom: 10,
+    fontWeight: "600",
+    marginBottom: 20,
     textAlign: "right",
-    fontWeight: "500",
+    marginRight: 10,
   },
   input: {
-    height: 50,
-    padding: 10,
+    margin: 8,
+    borderWidth: 0,
     backgroundColor: "#F5F5F5",
     borderRadius: 10,
-    fontSize: 16,
-  },
-  multiLineInput: {
-    minHeight: 100,
     padding: 10,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 10,
-    fontSize: 16,
+    textAlignVertical: "top",
   },
-  inputError: {
-    borderWidth: 1,
-    borderColor: "red",
+  section: {
+    flex: 1,
+    padding: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: "black",
   },
 });

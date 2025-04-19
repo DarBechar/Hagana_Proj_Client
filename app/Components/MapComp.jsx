@@ -11,7 +11,7 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 
-export default function MapComp({ setLocation }) {
+export default function MapComp() {
   // Ruppin Academic Center coordinates as fallback
   const ruppinCoords = {
     latitude: 32.3015,
@@ -29,19 +29,6 @@ export default function MapComp({ setLocation }) {
   const [locationPermissionGranted, setLocationPermissionGranted] =
     useState(false);
   const mapRef = useRef(null);
-
-  // Use a ref to track if this is the initial render
-  const isInitialMount = useRef(true);
-
-  // Direct updates instead of using useEffect
-  const updateParentLocation = (latitude, longitude) => {
-    if (setLocation) {
-      setLocation({
-        latitude,
-        longitude,
-      });
-    }
-  };
 
   // Request location permissions and get initial user location
   useEffect(() => {
@@ -70,7 +57,6 @@ export default function MapComp({ setLocation }) {
 
         setRegion(newRegion);
         setMarkerPosition({ latitude, longitude });
-        updateParentLocation(latitude, longitude);
 
         console.log("Got user location:", latitude, longitude);
       } catch (error) {
@@ -106,7 +92,6 @@ export default function MapComp({ setLocation }) {
 
         setRegion(newRegion);
         setMarkerPosition({ latitude, longitude });
-        updateParentLocation(latitude, longitude);
 
         // Animate to the new region
         mapRef.current?.animateToRegion(newRegion, 1000);
@@ -119,20 +104,10 @@ export default function MapComp({ setLocation }) {
     }
   };
 
-  // Function to handle marker drag
-  const onMarkerDragStart = () => {
-    console.log("Marker drag started");
-  };
-
   // Function to handle marker drag end
   const onMarkerDragEnd = (e) => {
-    // Make sure we get the correct coordinate format
-    const coordinate = e.nativeEvent.coordinate;
-    console.log("Marker dragged to:", coordinate);
-
-    const { latitude, longitude } = coordinate;
+    const { latitude, longitude } = e.nativeEvent.coordinate;
     setMarkerPosition({ latitude, longitude });
-    updateParentLocation(latitude, longitude);
 
     // Optional: Get address from coordinates
     (async () => {
@@ -151,16 +126,6 @@ export default function MapComp({ setLocation }) {
     })();
   };
 
-  // Add a function to handle map press for alternative positioning
-  const onMapPress = (e) => {
-    const coordinate = e.nativeEvent.coordinate;
-    console.log("Map pressed at:", coordinate);
-
-    const { latitude, longitude } = coordinate;
-    setMarkerPosition({ latitude, longitude });
-    updateParentLocation(latitude, longitude);
-  };
-
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
@@ -172,7 +137,7 @@ export default function MapComp({ setLocation }) {
           onSubmitEditing={searchAddress}
           returnKeyType="search"
         />
-        <Button onPress={searchAddress} title="חיפוש" />
+        <Button onPress={searchAddress} title="חיפוש"></Button>
       </View>
 
       <MapView
@@ -183,23 +148,15 @@ export default function MapComp({ setLocation }) {
         onRegionChangeComplete={setRegion}
         showsUserLocation={locationPermissionGranted}
         showsMyLocationButton={true}
-        pitchEnabled={false}
-        rotateEnabled={false}
-        onPress={onMapPress}
       >
         <Marker
           coordinate={markerPosition}
           title="מיקום נבחר"
           description="ניתן לגרור ולמקם מחדש"
-          draggable={true}
-          pinColor="red"
-          onDragStart={onMarkerDragStart}
+          draggable
           onDragEnd={onMarkerDragEnd}
         />
       </MapView>
-      <Text style={styles.helpText}>
-        לחץ על המפה או גרור את הסמן כדי לשנות מיקום
-      </Text>
     </View>
   );
 }
@@ -243,12 +200,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "white",
     fontWeight: "bold",
-    textAlign: "center",
-  },
-  helpText: {
-    marginTop: 5,
-    color: "#666",
-    fontSize: 12,
     textAlign: "center",
   },
 });

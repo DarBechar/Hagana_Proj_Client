@@ -2,10 +2,21 @@ import { View, StyleSheet } from "react-native";
 import EventComp from "./Screens/EventComp";
 import HomePage from "./Screens/HomePage";
 import Navigation from "./Navigation";
+import Report from "./Screens/Report";
+import NavReport from "./Screens/NavReport";
+import { NavigationContainer, NavigationIndependentTree } from "@react-navigation/native";
 
 export default function Index() {
-  return <Navigation />;
+  return (
+    <NavigationIndependentTree>
+      <>
+        {/* <NavReport /> */}
+        <Navigation />
+      </>
+    </NavigationIndependentTree>
+  );
 }
+
 
 const styles = StyleSheet.create({
   container: {

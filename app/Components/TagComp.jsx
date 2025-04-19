@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { TouchableOpacity, Text, StyleSheet } from "react-native";
-
+import { View, Pressable, Text, StyleSheet } from "react-native";
+import { useState } from "react";
 export default function TagComp({
   label,
   initialSelected = false,
@@ -12,47 +11,40 @@ export default function TagComp({
   activeTextColor = "white",
   inactiveTextColor = "#333",
 }) {
-  const [selected, setSelected] = useState(initialSelected);
-
-  // Update selected state if initialSelected changes
-  useEffect(() => {
-    setSelected(initialSelected);
-  }, [initialSelected]);
+  const [isSelected, setIsSelected] = useState(initialSelected);
 
   const handlePress = () => {
-    const newSelected = !selected;
-    setSelected(newSelected);
+    setIsSelected(!isSelected);
     if (onPress) {
-      onPress(newSelected);
+      onPress(!isSelected);
     }
   };
-
   return (
-    <TouchableOpacity
-      style={[
-        styles.container,
-        {
-          backgroundColor: selected ? activeColor : inactiveColor,
-          borderColor: activeColor,
-        },
-        style,
-      ]}
-      onPress={handlePress}
-      activeOpacity={0.7}
-    >
-      <Text
+    <View>
+      <Pressable
         style={[
-          styles.text,
+          styles.container,
           {
-            color: selected ? activeTextColor : inactiveTextColor,
+            backgroundColor: isSelected ? activeColor : inactiveColor,
+            borderColor: activeColor,
           },
-          textStyle,
+          style,
         ]}
-        numberOfLines={1}
+        onPress={handlePress}
       >
-        {label}
-      </Text>
-    </TouchableOpacity>
+        <Text
+          style={[
+            styles.text,
+            {
+              color: isSelected ? activeTextColor : inactiveTextColor,
+            },
+            textStyle,
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -62,13 +54,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 30,
     borderWidth: 1,
+    marginRight: 8,
+    marginBottom: 8,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 40,
   },
   text: {
     fontSize: 14,
     fontWeight: "500",
     textAlign: "center",
+  },
+  groupContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
   },
 });
