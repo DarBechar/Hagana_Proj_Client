@@ -49,6 +49,7 @@ export default function EventComp() {
   const [isEventStatusDataLoading, setIsEventStatusDataLoading] =
     useState(true);
   const [isAuthorityDataLoading, setIsAuthorityDataLoading] = useState(true);
+  const [eventName, setEventName] = useState("");
 
   // Track validation errors
   const [errors, setErrors] = useState({
@@ -191,7 +192,9 @@ export default function EventComp() {
     }));
   };
 
-  const handleEventTypeChange = (selectedEventType) => {
+  const handleEventTypeChange = (selectedEventType, selectedLabel) => {
+    let NewEventName = `${selectedLabel} | ${Date.now()}`;
+    setEventName(NewEventName);
     setEventType(selectedEventType);
     setEventForm((prevState) => ({
       ...prevState,
@@ -206,13 +209,6 @@ export default function EventComp() {
         eventTypeCode: false,
       }));
     }
-
-    console.log(
-      "Selected event type:",
-      selectedEventType,
-      "Label:",
-      selectedLabel
-    );
   };
 
   const handleSubmit = () => {

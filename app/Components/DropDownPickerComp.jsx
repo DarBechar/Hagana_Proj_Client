@@ -82,9 +82,23 @@ const Dropdown = forwardRef(({ onChangeValue, onToggle, hasError }, ref) => {
 
   const handleValueChange = (selectedValue) => {
     if (onChangeValue) {
+      const selectedItem = data.find((item) => item.value === selectedValue);
+
+      // Pass both value and label to the parent component
+      if (selectedItem) {
+        onChangeValue(selectedValue, selectedItem.label);
+      } else {
+        onChangeValue(selectedValue, null);
+      }
       onChangeValue(selectedValue);
     }
   };
+
+  // const handleValueChange = (selectedValue) => {
+  //   if (onChangeValue) {
+  //     onChangeValue(selectedValue);
+  //   }
+  // };
 
   return (
     <View
