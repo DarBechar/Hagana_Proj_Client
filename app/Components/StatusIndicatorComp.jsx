@@ -42,7 +42,7 @@ export default function StatusIndicator({ status }) {
           {status === "emergency"
             ? "אירוע חירום פעיל"
             : status === "warning"
-            ? "בדיקת מצב"
+            ? "דיווח בבדיקה"
             : "אין אירועים פעילים"}
         </Text>
       </View>

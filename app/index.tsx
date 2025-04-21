@@ -1,7 +1,5 @@
-import { View, StyleSheet } from "react-native";
-import EventComp from "./Screens/EventComp";
-import HomePage from "./Screens/HomePage";
-import Navigation from "./Navigation";
+import {  StyleSheet } from "react-native";
+import Navigation from "./Navigation/Navigation";
 
 export default function Index() {
   return <Navigation />;

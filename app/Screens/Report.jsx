@@ -99,14 +99,14 @@ export default function Report() {
         contentContainerStyle={styles.scrollViewContent}
       >
         <View style={[styles.section, isDropdownOpen && styles.nudgeDown]}>
-          <View style={styles.headerRow}>
+          {/* <View style={styles.headerRow}>
             <TouchableOpacity
               onPress={() => navigation.navigate("HomePage")}
               style={styles.backButton}
             >
               <Ionicons name="arrow-back" size={24} color="#000" />
             </TouchableOpacity>
-          </View>
+          </View> */}
 
           <Text style={styles.headerTitle}>יצירת דיווח חדש</Text>
 
@@ -210,6 +210,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 20,
     padding: 2,
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",

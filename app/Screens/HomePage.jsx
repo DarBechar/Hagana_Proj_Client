@@ -18,7 +18,7 @@ import StatusIndicator from "../Components/StatusIndicatorComp";
 import EmergencyAlertModal from "../Components/EmergencyAlertModal";
 import User from "../Constants/Utils";
 import { useNavigation } from "@react-navigation/native";
-import { useEmergency } from "../Navigation";
+import { useEmergency } from "../Context/EmergencyContext";
 
 const HomeScreen = () => {
   //state variables
@@ -133,9 +133,14 @@ const HomeScreen = () => {
         <View style={styles.divider} />
 
         {/* Fourth Menu Item */}
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            navigation.navigate("EventLogScreen");
+          }}
+        >
           <View style={styles.menuContent}>
-            <Text style={styles.menuText}>לוג אירועים</Text>
+            <Text style={styles.menuText}>יומן אירועים</Text>
             <View
               style={[styles.iconContainer, { backgroundColor: "#f9ebeb" }]}
             >
@@ -179,38 +184,6 @@ const HomeScreen = () => {
           }}
         />
       </View>
-      {/* Bottom Tab Navigator */}
-      {/* <View style={styles.tabNavigator}>
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="home-outline" size={24} color="#888" />
-          <Text style={styles.tabLabel}>בית</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="call-outline" size={24} color="#888" />
-          <Text style={styles.tabLabel}>איש קשר</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem}>
-          <View style={styles.addButton}>
-            <Ionicons name="add" size={30} color="#fff" />
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem}>
-          <MaterialCommunityIcons
-            name="view-grid-outline"
-            size={24}
-            color="#888"
-          />
-          <Text style={styles.tabLabel}>דשבורד</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="chatbubble-outline" size={24} color="#888" />
-          <Text style={styles.tabLabel}>צ'אט</Text>
-        </TouchableOpacity>
-      </View> */}
     </SafeAreaView>
   );
 };

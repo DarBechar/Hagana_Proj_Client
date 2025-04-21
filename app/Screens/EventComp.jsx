@@ -506,7 +506,7 @@ export default function EventComp() {
             type={"cancel"}
             onPress={handleCancel}
           />
-          <PrimaryBtnComp text={"יצירת דיווח"} onPress={handleSubmit} />
+          <PrimaryBtnComp text={"יצירת אירוע"} onPress={handleSubmit} />
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,30 +1,41 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { View, StyleSheet } from "react-native";
-import HomePage from "./Screens/HomePage";
-import ContactsScreen from "./Screens/ContactsScreen";
-import ChatScreen from "./Screens/ChatScreen";
-import Map from "./Screens/Map";
-import EventComp from "./Screens/EventComp";
-import EventDetailsScreen from "./Screens/EventDetailsScreen";
+import HomePage from "../Screens/HomePage";
+import ContactsScreen from "../Screens/ContactsScreen";
+import ChatScreen from "../Screens/ChatScreen";
+import Map from "../Screens/Map";
+import CustomTabsContainer from "./CustomTabsContainer";
+import { createStackNavigator } from "@react-navigation/stack";
+import EventLogScreen from "../Screens/EventLogScreen";
+import { EmergencyContext, useEmergency } from "../Context/EmergencyContext";
+import EventDetailsScreen from "../Screens/EventDetailsScreen";
+import EventLogDetailsScreen from "../Screens/EventLogDetailsScreen";
 import {
   Ionicons,
   MaterialIcons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import { API_URL } from "./Constants/Utils";
-
-// Create a context to share emergency status across components
-export const EmergencyContext = createContext({
-  hasActiveEmergency: false,
-  activeEvent: null,
-  setHasActiveEmergency: () => {},
-  setActiveEvent: () => {},
-  refreshEmergencyStatus: () => {},
-});
+import { API_URL } from "../Constants/Utils";
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
+// Stack navigator for Home and its related screens
+function HomeStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="HomeScreen" component={HomePage} />
+      <Stack.Screen name="EventLogScreen" component={EventLogScreen} />
+      <Stack.Screen
+        name="EventLogDetailsScreen"
+        component={EventLogDetailsScreen}
+      />
+      <Stack.Screen name="EventDetailsScreen" component={EventDetailsScreen} />
+    </Stack.Navigator>
+  );
+}
+//Tab navigation
 function TabGroup() {
   const [hasActiveEmergency, setHasActiveEmergency] = useState(false);
   const [activeEvent, setActiveEvent] = useState(null);
@@ -174,7 +185,7 @@ function TabGroup() {
           headerShown: false,
         })}
       >
-        <Tab.Screen name="בית" component={HomePage} />
+        <Tab.Screen name="בית" component={HomeStack} />
         <Tab.Screen name="אנשי קשר" component={ContactsScreen} />
 
         {/* Conditionally render emergency event screen or add event screen */}
@@ -189,7 +200,7 @@ function TabGroup() {
             }}
           />
         ) : (
-          <Tab.Screen name="הוספה" component={EventComp} />
+          <Tab.Screen name="הוספה" component={CustomTabsContainer} />
         )}
 
         <Tab.Screen name="מפה" component={Map} />
@@ -198,9 +209,6 @@ function TabGroup() {
     </EmergencyContext.Provider>
   );
 }
-
-// Custom hook to use the emergency context
-export const useEmergency = () => useContext(EmergencyContext);
 
 export default function Navigation() {
   return <TabGroup />;
