@@ -4,7 +4,7 @@ import { View, StyleSheet } from "react-native";
 import HomePage from "../Screens/HomePage";
 import ContactsScreen from "../Screens/ContactsScreen";
 import ChatScreen from "../Screens/ChatScreen";
-import Map from "../Screens/Map";
+import MapScreen from "../Screens/MapScreen";
 import CustomTabsContainer from "./CustomTabsContainer";
 import { createStackNavigator } from "@react-navigation/stack";
 import EventLogScreen from "../Screens/EventLogScreen";
@@ -203,7 +203,7 @@ function TabGroup() {
           <Tab.Screen name="הוספה" component={CustomTabsContainer} />
         )}
 
-        <Tab.Screen name="מפה" component={Map} />
+        <Tab.Screen name="מפה" component={MapScreen} />
         <Tab.Screen name="צ׳אט" component={ChatScreen} />
       </Tab.Navigator>
     </EmergencyContext.Provider>
