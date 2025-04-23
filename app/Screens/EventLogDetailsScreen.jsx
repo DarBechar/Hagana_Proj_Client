@@ -109,7 +109,7 @@ export default function EventLogDetailsScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-forward" size={28} color="#333" />
+          <Ionicons name="chevron-back" size={28} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>פרטי אירוע</Text>
         <View style={styles.headerRight} />

@@ -489,11 +489,11 @@ export default function EventLogScreen() {
   const HeaderComponent = React.memo(() => (
     <View style={styles.headerContainer}>
       <View style={styles.headerRow}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+          <Ionicons name="chevron-back" size={28} color="#333" />
+        </TouchableOpacity>
         <View style={styles.headerPlaceholder} />
         <Text style={styles.headerTitle}>יומן אירועים</Text>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Ionicons name="chevron-forward" size={28} color="#333" />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -766,6 +766,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: "bold",
+    textAlign: "center",
   },
   headerPlaceholder: {
     width: 28, // Balance with back button
