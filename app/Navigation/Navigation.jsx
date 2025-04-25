@@ -46,7 +46,7 @@ function TabGroup() {
     setIsLoading(true);
     try {
       // Fetch active events from the API
-      const response = await fetch(`${API_URL}Event`, {
+      const response = await fetch(`${API_URL}Event/active`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

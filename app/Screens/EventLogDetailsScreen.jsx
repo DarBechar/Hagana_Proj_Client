@@ -57,6 +57,8 @@ export default function EventLogDetailsScreen() {
         return "#F44336"; // Red
       case 5: // Emergency
         return "#F89300"; // Orange
+      case 6: // closed
+        return "#888888"; // Orange
       default:
         return "#888"; // Default gray
     }
@@ -97,6 +99,8 @@ export default function EventLogDetailsScreen() {
         return "קריטי";
       case 5:
         return "חירום";
+      case 6:
+        return "סגור";
       default:
         return "לא ידוע";
     }

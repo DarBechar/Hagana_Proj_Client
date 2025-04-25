@@ -102,7 +102,7 @@ export default function ContactsScreen({ navigation }) {
     setLoading(true);
     try {
       // Try to fetch contacts from API
-      const response = await fetch(`${API_URL}Contacts`, {
+      const response = await fetch(`${API_URL}Users`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -264,7 +264,7 @@ export default function ContactsScreen({ navigation }) {
       <FlatList
         data={filteredContacts}
         renderItem={renderContactItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.userID.toString()}
         ListHeaderComponent={<ListHeader />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>

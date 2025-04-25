@@ -276,6 +276,7 @@ export default function EventLogScreen() {
     { id: "3", label: "רפואי", color: "#4CAF50" },
     { id: "4", label: "תשתיות", color: "#2196F3" },
     { id: "5", label: "אחר", color: "#9E9E9E" },
+    { id: "6", label: "סגור", color: "#9E9E9E" },
   ];
 
   // Mock data for testing - will be replaced with API data
@@ -390,7 +391,7 @@ export default function EventLogScreen() {
     setLoading(true);
     try {
       // Try to fetch events from API
-      const response = await fetch(`${API_URL}EventLog`, {
+      const response = await fetch(`${API_URL}Event/all`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

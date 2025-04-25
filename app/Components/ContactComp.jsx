@@ -33,13 +33,15 @@ export default function ContactComp({ contact, onPress }) {
       </View>
 
       <View style={styles.infoContainer}>
-        <Text style={styles.name}>{contact.name}</Text>
+        <Text style={styles.name}>
+          {contact.firstName + ` ` + contact.lastName}
+        </Text>
         <Text style={styles.role}>{contact.role || "מתנדב"}</Text>
-        <Text style={styles.phone}>{contact.phone}</Text>
+        <Text style={styles.phone}>{contact.phoneNumber}</Text>
       </View>
 
       <Image
-        source={{ uri: contact.image || defaultImage }}
+        source={{ uri: contact.picture || defaultImage }}
         style={styles.image}
       />
     </TouchableOpacity>
