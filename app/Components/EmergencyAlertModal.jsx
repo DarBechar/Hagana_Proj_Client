@@ -122,11 +122,11 @@ const EmergencyAlertModal = ({ visible, onClose, onSlide }) => {
           </View>
           <View style={styles.indicatorContainer}>
             <View style={[styles.statusIndicator, styles.Indicator]}>
-              <Text style={styles.indicatorText}>סירוב הבקשה</Text>
+              <Text style={styles.indicatorText}>יש נפגעים</Text>
             </View>
 
             <View style={[styles.statusIndicator, styles.Indicator]}>
-              <Text style={styles.indicatorText}>אישור</Text>
+              <Text style={styles.indicatorText}>שריפה</Text>
               <Ionicons
                 name="flame-outline"
                 size={16}
