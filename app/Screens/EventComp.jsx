@@ -57,7 +57,6 @@ export default function EventComp() {
     EventTypeCode: false,
     description: false,
   });
-מ
   //fetch data
   useEffect(() => {
     // Fetch tag data from the server when component mounts

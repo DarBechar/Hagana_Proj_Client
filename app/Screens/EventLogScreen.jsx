@@ -260,6 +260,9 @@ export default function EventLogScreen() {
   const navigation = useNavigation();
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
+  const [eventTypes, setEventTypes] = useState([
+    { id: "all", label: "הכל", color: "#9610FF" },
+  ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -268,97 +271,112 @@ export default function EventLogScreen() {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
 
-  // Define event types
-  const eventTypes = [
-    { id: "all", label: "הכל", color: "#9610FF" },
-    { id: "1", label: "שריפה", color: "#F44336" },
-    { id: "2", label: "בטחוני", color: "#FF9800" },
-    { id: "3", label: "רפואי", color: "#4CAF50" },
-    { id: "4", label: "תשתיות", color: "#2196F3" },
-    { id: "5", label: "אחר", color: "#9E9E9E" },
-    { id: "6", label: "סגור", color: "#9E9E9E" },
-  ];
-
-  // Mock data for testing - will be replaced with API data
-  const mockEvents = [
-    {
-      eventCode: 1001,
-      eventName: "שריפה בשטח פתוח",
-      openingDate: "2025-04-15T14:30:00.000Z",
-      description: "שריפה בשטח פתוח ליד שכונת הדקלים",
-      eventStatusCode: 3,
-      eventTypeCode: 1,
-      eventTypeName: "שריפה",
-      locationName: "שכונת הדקלים, כביש 5",
-      locationLatitude: 32.1234,
-      locationLongitude: 34.8765,
-    },
-    {
-      eventCode: 1002,
-      eventName: "פגיעה בתשתית חשמל",
-      openingDate: "2025-04-17T08:15:00.000Z",
-      description: "הפסקת חשמל בעקבות פגיעה בקו מתח גבוה",
-      eventStatusCode: 2,
-      eventTypeCode: 4,
-      eventTypeName: "תשתיות",
-      locationName: "רחוב הרצל, ליד בית העם",
-      locationLatitude: 32.3215,
-      locationLongitude: 34.8543,
-    },
-    {
-      eventCode: 1003,
-      eventName: "חפץ חשוד",
-      openingDate: "2025-04-18T16:45:00.000Z",
-      description: "תיק ללא בעלים בשטח ציבורי",
-      eventStatusCode: 1,
-      eventTypeCode: 2,
-      eventTypeName: "בטחוני",
-      locationName: "גן המייסדים",
-      locationLatitude: 32.3015,
-      locationLongitude: 34.8701,
-    },
-    {
-      eventCode: 1004,
-      eventName: "תאונת דרכים",
-      openingDate: "2025-04-19T11:20:00.000Z",
-      description: "תאונה בין שני רכבים פרטיים, נפגעים במקום",
-      eventStatusCode: 4,
-      eventTypeCode: 3,
-      eventTypeName: "רפואי",
-      locationName: "צומת הכפר, כביש 553",
-      locationLatitude: 32.2856,
-      locationLongitude: 34.9012,
-    },
-    {
-      eventCode: 1005,
-      eventName: "אירוע חירום רפואי",
-      openingDate: "2025-04-20T20:10:00.000Z",
-      description: "קריאה לסיוע רפואי דחוף",
-      eventStatusCode: 5,
-      eventTypeCode: 3,
-      eventTypeName: "רפואי",
-      locationName: "מרכז הספורט",
-      locationLatitude: 32.3122,
-      locationLongitude: 34.8834,
-    },
+  // Define colors for different event types
+  const typeColors = [
+    "#F44336",
+    "#FF9800",
+    "#4CAF50",
+    "#2196F3",
+    "#9C27B0",
+    "#607D8B",
+    "#795548",
+    "#E91E63",
   ];
 
   useEffect(() => {
+    fetchEventTypes();
     fetchEvents();
   }, []);
 
-  // Filter events based on search query, event type and date range
+  // Fetch event types from API
+  const fetchEventTypes = async () => {
+    try {
+      console.log("Fetching event types from:", `${API_URL}EventType`);
+
+      const response = await fetch(`${API_URL}EventType`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Network response error: ${response.status}`);
+      }
+
+      const text = await response.text();
+      console.log("Raw event types response:", text);
+
+      if (text && text !== "null" && text !== "") {
+        try {
+          const data = JSON.parse(text);
+          console.log("Parsed event types:", data);
+
+          if (Array.isArray(data) && data.length > 0) {
+            // Transform API data to filter format
+            const transformedTypes = data.map((type, index) => ({
+              id: type.EventTypeCode.toString(),
+              label: type.EventTypeName,
+              color: typeColors[index % typeColors.length] || "#9E9E9E",
+              description: type.EventTypeDescription,
+            }));
+
+            // Add "הכל" option at the beginning
+            const allTypes = [
+              { id: "all", label: "הכל", color: "#9610FF" },
+              ...transformedTypes,
+            ];
+
+            console.log("Final event types:", allTypes);
+            setEventTypes(allTypes);
+          } else {
+            console.log("No valid event types data");
+          }
+        } catch (parseError) {
+          console.error("Error parsing event types JSON:", parseError);
+        }
+      } else {
+        console.log("Empty event types response");
+      }
+    } catch (error) {
+      console.error("Error fetching event types:", error);
+      // Keep default "הכל" option if API fails
+      console.log("Using default event types due to error");
+    }
+  };
   useEffect(() => {
+    console.log("=== FILTERING DEBUG ===");
+    console.log("Total events:", events.length);
+    console.log("Current filterType:", filterType);
+    console.log("Current searchQuery:", searchQuery);
+    console.log("Current startDate:", startDate);
+    console.log("Current endDate:", endDate);
+
     let results = [...events];
+    console.log("Starting with events:", results.length);
 
     // Apply type filter if not set to 'all'
     if (filterType !== "all") {
       const typeCode = parseInt(filterType);
-      results = results.filter((event) => event.eventTypeCode === typeCode);
+      console.log("Filtering by type code:", typeCode);
+
+      const beforeLength = results.length;
+      results = results.filter((event) => {
+        const eventTypeCode = event.eventTypeCode;
+        console.log(
+          `Event ${event.eventCode}: eventTypeCode=${eventTypeCode}, matches=${
+            eventTypeCode === typeCode
+          }`
+        );
+        return eventTypeCode === typeCode;
+      });
+      console.log(`After type filter: ${beforeLength} -> ${results.length}`);
     }
 
     // Apply date range filter if set
     if (startDate) {
+      console.log("Applying date filter");
       // Set time to beginning of day
       const start = new Date(startDate);
       start.setHours(0, 0, 0, 0);
@@ -367,30 +385,54 @@ export default function EventLogScreen() {
       const end = new Date(endDate || startDate);
       end.setHours(23, 59, 59, 999);
 
+      console.log("Date range:", start, "to", end);
+
+      const beforeLength = results.length;
       results = results.filter((event) => {
         const eventDate = new Date(event.openingDate);
-        return eventDate >= start && eventDate <= end;
+        const matches = eventDate >= start && eventDate <= end;
+        console.log(
+          `Event ${event.eventCode}: date=${eventDate}, matches=${matches}`
+        );
+        return matches;
       });
+      console.log(`After date filter: ${beforeLength} -> ${results.length}`);
     }
 
     // Apply search filter if query exists
     if (searchQuery.trim() !== "") {
-      results = results.filter(
-        (event) =>
-          (event.eventName && event.eventName.includes(searchQuery)) ||
-          (event.description && event.description.includes(searchQuery)) ||
-          (event.locationName && event.locationName.includes(searchQuery)) ||
-          (event.eventCode && event.eventCode.toString().includes(searchQuery))
-      );
+      console.log("Applying search filter for:", searchQuery);
+      const beforeLength = results.length;
+      results = results.filter((event) => {
+        const eventName = (event.eventName || "").toLowerCase();
+        const description = (event.description || "").toLowerCase();
+        const locationName = (event.locationName || "").toLowerCase();
+        const eventCode = (event.eventCode || "").toString();
+        const query = searchQuery.toLowerCase();
+
+        const matches =
+          eventName.includes(query) ||
+          description.includes(query) ||
+          locationName.includes(query) ||
+          eventCode.includes(query);
+
+        console.log(`Event ${event.eventCode}: matches search="${matches}"`);
+        return matches;
+      });
+      console.log(`After search filter: ${beforeLength} -> ${results.length}`);
     }
 
+    console.log("Final filtered results:", results.length);
     setFilteredEvents(results);
   }, [events, searchQuery, filterType, startDate, endDate]);
 
   const fetchEvents = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      // Try to fetch events from API
+      console.log("Fetching events from:", `${API_URL}Event/all`);
+
       const response = await fetch(`${API_URL}Event/all`, {
         method: "GET",
         headers: {
@@ -404,38 +446,37 @@ export default function EventLogScreen() {
       }
 
       const text = await response.text();
+      console.log("Raw API response:", text);
 
       // Check if response is empty or null
       if (!text || text === "null" || text === "") {
-        console.log("No events found in API, using mock data");
-        setEvents(mockEvents);
-        setFilteredEvents(mockEvents);
+        console.log("No events found in API, setting empty array");
+        setEvents([]);
+        setError("לא נמצאו אירועים במערכת");
       } else {
         // Try to parse the response as JSON
         try {
           const data = JSON.parse(text);
-          console.log("Events fetched:", data);
+          console.log("Parsed events data:", data);
 
           if (Array.isArray(data) && data.length > 0) {
+            console.log("Setting events from API:", data.length);
             setEvents(data);
-            setFilteredEvents(data);
           } else {
-            console.log("Invalid events data, using mock data");
-            setEvents(mockEvents);
-            setFilteredEvents(mockEvents);
+            console.log("Invalid events data structure");
+            setEvents([]);
+            setError("לא נמצאו אירועים במערכת");
           }
         } catch (parseError) {
           console.error("Error parsing events JSON:", parseError);
-          setEvents(mockEvents);
-          setFilteredEvents(mockEvents);
+          setEvents([]);
+          setError("שגיאה בעיבוד נתוני האירועים");
         }
       }
-      setError(null);
     } catch (error) {
       console.error("Error fetching events:", error);
-      setError("לא ניתן לטעון את יומן האירועים כרגע");
-      setEvents(mockEvents);
-      setFilteredEvents(mockEvents);
+      setError("לא ניתן לטעון את יומן האירועים כרגע. בדוק את החיבור לאינטרנט.");
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -446,10 +487,12 @@ export default function EventLogScreen() {
   };
 
   const handleSearchChange = (text) => {
+    console.log("Search changed to:", text);
     setSearchQuery(text);
   };
 
   const handleFilterChange = (type) => {
+    console.log("Filter changed to:", type);
     setFilterType(type);
   };
 
@@ -458,11 +501,21 @@ export default function EventLogScreen() {
   };
 
   const handleDateRangeSelect = (start, end) => {
+    console.log("Date range selected:", start, end);
     setStartDate(start);
     setEndDate(end);
   };
 
   const clearDateFilter = () => {
+    console.log("Clearing date filter");
+    setStartDate(null);
+    setEndDate(null);
+  };
+
+  const clearAllFilters = () => {
+    console.log("Clearing all filters");
+    setSearchQuery("");
+    setFilterType("all");
     setStartDate(null);
     setEndDate(null);
   };
@@ -486,6 +539,13 @@ export default function EventLogScreen() {
     return `${formatDate(startDate)} - ${formatDate(endDate)}`;
   };
 
+  // Check if any filters are active
+  const hasActiveFilters = () => {
+    return (
+      searchQuery.trim() !== "" || filterType !== "all" || startDate !== null
+    );
+  };
+
   // Header component with back button
   const HeaderComponent = React.memo(() => (
     <View style={styles.headerContainer}>
@@ -493,8 +553,18 @@ export default function EventLogScreen() {
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Ionicons name="chevron-back" size={28} color="#333" />
         </TouchableOpacity>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>יומן אירועים</Text>
+          {hasActiveFilters() && (
+            <TouchableOpacity
+              style={styles.clearAllButton}
+              onPress={clearAllFilters}
+            >
+              <Text style={styles.clearAllText}>נקה הכל</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={styles.headerPlaceholder} />
-        <Text style={styles.headerTitle}>יומן אירועים</Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -512,6 +582,14 @@ export default function EventLogScreen() {
           color="#666"
           style={styles.searchIcon}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearSearchButton}
+            onPress={() => setSearchQuery("")}
+          >
+            <Ionicons name="close-circle" size={20} color="#666" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.filtersRow}>
@@ -524,7 +602,7 @@ export default function EventLogScreen() {
         >
           <FontAwesome
             name="calendar"
-            size={18}
+            size={16}
             color={startDate ? "#fff" : "#666"}
           />
         </TouchableOpacity>
@@ -533,8 +611,7 @@ export default function EventLogScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersScrollContent}
-          // Reverse the scroll direction for RTL
-          style={{ transform: [{ scaleX: -1 }] }}
+          style={styles.filtersScroll}
         >
           {eventTypes.map((type) => (
             <TouchableOpacity
@@ -542,8 +619,6 @@ export default function EventLogScreen() {
               style={[
                 styles.filterButton,
                 filterType === type.id && { backgroundColor: type.color },
-                // Reverse the button for RTL
-                { transform: [{ scaleX: -1 }] },
               ]}
               onPress={() => handleFilterChange(type.id)}
             >
@@ -562,15 +637,22 @@ export default function EventLogScreen() {
 
       {startDate && (
         <View style={styles.dateFilterBadge}>
+          <Text style={styles.dateFilterText}>{formatDateRange()}</Text>
           <TouchableOpacity
             onPress={clearDateFilter}
-            style={{ marginRight: 4 }}
+            style={styles.clearDateButton}
           >
             <Ionicons name="close-circle" size={16} color="#666" />
           </TouchableOpacity>
-          <Text style={styles.dateFilterText}>{formatDateRange()}</Text>
         </View>
       )}
+
+      {/* Results summary */}
+      <View style={styles.resultsContainer}>
+        <Text style={styles.resultsText}>
+          נמצאו {filteredEvents.length} אירועים מתוך {events.length}
+        </Text>
+      </View>
     </View>
   ));
 
@@ -590,12 +672,19 @@ export default function EventLogScreen() {
         renderItem={({ item }) => (
           <EventLogItem event={item} onPress={handleEventPress} />
         )}
-        keyExtractor={(item) => item.eventCode.toString()}
+        keyExtractor={(item) =>
+          item.eventCode?.toString() || Math.random().toString()
+        }
         ListHeaderComponent={<HeaderComponent />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialIcons name="event-note" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>{error || "לא נמצאו אירועים"}</Text>
+            <Text style={styles.emptyText}>
+              {error ||
+                (hasActiveFilters()
+                  ? "לא נמצאו אירועים המתאימים לחיפוש"
+                  : "לא נמצאו אירועים")}
+            </Text>
             <TouchableOpacity style={styles.retryButton} onPress={fetchEvents}>
               <Text style={styles.retryText}>רענן</Text>
             </TouchableOpacity>
@@ -672,8 +761,8 @@ const calendarStyles = StyleSheet.create({
     marginBottom: 10,
   },
   dayCell: {
-    width: "14.28%", // 7 days per week
-    aspectRatio: 1, // Square cells
+    width: "14.28%",
+    aspectRatio: 1,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 20,
@@ -683,7 +772,7 @@ const calendarStyles = StyleSheet.create({
     textAlign: "center",
   },
   selectedDay: {
-    backgroundColor: "#9610FF33", // Light purple with transparency
+    backgroundColor: "#9610FF33",
   },
   startDay: {
     backgroundColor: "#9610FF",
@@ -764,13 +853,29 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: "bold",
     textAlign: "center",
   },
+  clearAllButton: {
+    backgroundColor: "#ff5252",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  clearAllText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "500",
+  },
   headerPlaceholder: {
-    width: 28, // Balance with back button
+    width: 28,
   },
   searchContainer: {
     flexDirection: "row",
@@ -782,17 +887,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   searchIcon: {
-    marginRight: 8,
+    marginLeft: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     color: "#333",
   },
+  clearSearchButton: {
+    marginRight: 4,
+  },
   filtersRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end", // Align from right side
+    marginBottom: 8,
+  },
+  filtersScroll: {
+    flex: 1,
   },
   filtersScrollContent: {
     paddingVertical: 4,
@@ -816,13 +927,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   dateFilterButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#f0f0f0",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    marginLeft: 8,
   },
   activeDateFilterButton: {
     backgroundColor: "#9610FF",
@@ -835,11 +946,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 15,
     alignSelf: "flex-end",
-    marginTop: 8,
+    marginBottom: 8,
   },
   dateFilterText: {
     fontSize: 12,
     color: "#333",
+    marginLeft: 4,
+  },
+  clearDateButton: {
+    marginRight: 4,
+  },
+  resultsContainer: {
+    backgroundColor: "#f8f9fa",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  resultsText: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "right",
+    fontWeight: "500",
   },
   emptyContainer: {
     flex: 1,

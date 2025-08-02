@@ -27,9 +27,10 @@ export default function EventLogItem({ event, onPress }) {
 
   // Function to determine event status color
   const getStatusColor = () => {
-    if (!event.eventStatusCode) return "#888"; // Default gray
+    const statusCode = event.eventStatusCode || event.EventStatusCode;
+    if (!statusCode) return "#888"; // Default gray
 
-    switch (event.eventStatusCode) {
+    switch (statusCode) {
       case 1: // Open
         return "#4CAF50"; // Green
       case 2: // In Progress
@@ -41,17 +42,37 @@ export default function EventLogItem({ event, onPress }) {
       case 5: // Emergency
         return "#F89300"; // Orange
       case 6: // closed
-        return "#888888"; // Orange
+        return "#888888"; // Gray
       default:
         return "#888"; // Default gray
     }
   };
 
+  // Function to get event type color
+  const getEventTypeColor = () => {
+    const typeCode = event.EventTypeCode || event.eventTypeCode;
+    if (!typeCode) return "#9E9E9E";
+
+    // Colors array matching what we use in the main screen
+    const typeColors = [
+      "#F44336",
+      "#FF9800",
+      "#4CAF50",
+      "#2196F3",
+      "#9C27B0",
+      "#607D8B",
+      "#795548",
+      "#E91E63",
+    ];
+    return typeColors[(typeCode - 1) % typeColors.length] || "#9E9E9E";
+  };
+
   // Function to get status text based on status code
   const getStatusText = () => {
-    if (!event.eventStatusCode) return "לא ידוע";
+    const statusCode = event.eventStatusCode || event.EventStatusCode;
+    if (!statusCode) return "לא ידוע";
 
-    switch (event.eventStatusCode) {
+    switch (statusCode) {
       case 1:
         return "פתוח";
       case 2:
@@ -64,10 +85,35 @@ export default function EventLogItem({ event, onPress }) {
         return "חירום";
       case 6:
         return "סגור";
-
       default:
         return "לא ידוע";
     }
+  };
+
+  // Get event type name
+  const getEventTypeName = () => {
+    return event.EventTypeName || event.eventTypeName || "סוג לא ידוע";
+  };
+
+  // Get event details with fallback for different field names
+  const getEventCode = () => {
+    return event.eventCode || event.EventCode || "לא ידוע";
+  };
+
+  const getEventName = () => {
+    return event.eventName || event.EventName || "אירוע ללא שם";
+  };
+
+  const getLocationName = () => {
+    return event.locationName || event.LocationName || "מיקום לא ידוע";
+  };
+
+  const getDescription = () => {
+    return event.description || event.Description || "";
+  };
+
+  const getOpeningDate = () => {
+    return event.openingDate || event.OpeningDate;
   };
 
   return (
@@ -78,23 +124,24 @@ export default function EventLogItem({ event, onPress }) {
     >
       <View style={styles.content}>
         <View style={styles.headerRow}>
-          <View
-            style={[
-              styles.statusIndicator,
-              { backgroundColor: getStatusColor() },
-            ]}
-          >
-            <Text style={styles.statusText}>{getStatusText()}</Text>
+          <View style={styles.badgesContainer}>
+            <View
+              style={[
+                styles.typeIndicator,
+                { backgroundColor: getEventTypeColor() },
+              ]}
+            >
+              <Text style={styles.typeText}>{getEventTypeName()}</Text>
+            </View>
           </View>
-          <Text style={styles.eventCode}>#{event.eventCode}</Text>
+
+          <Text style={styles.eventCode}>#{getEventCode()}</Text>
         </View>
 
-        <Text style={styles.title}>{event.eventName || "אירוע ללא שם"}</Text>
+        <Text style={styles.title}>{getEventName()}</Text>
 
         <View style={styles.detailsRow}>
-          <Text style={styles.location}>
-            {event.locationName || "מיקום לא ידוע"}
-          </Text>
+          <Text style={styles.location}>{getLocationName()}</Text>
           <MaterialIcons
             name="location-on"
             size={16}
@@ -104,7 +151,7 @@ export default function EventLogItem({ event, onPress }) {
         </View>
 
         <View style={styles.detailsRow}>
-          <Text style={styles.date}>{formatDateTime(event.openingDate)}</Text>
+          <Text style={styles.date}>{formatDateTime(getOpeningDate())}</Text>
           <MaterialIcons
             name="access-time"
             size={16}
@@ -113,9 +160,9 @@ export default function EventLogItem({ event, onPress }) {
           />
         </View>
 
-        {event.description && (
+        {getDescription() && (
           <Text style={styles.description} numberOfLines={2}>
-            {event.description}
+            {getDescription()}
           </Text>
         )}
       </View>
@@ -146,23 +193,40 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 8,
+  },
+  badgesContainer: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 4,
   },
   eventCode: {
     fontSize: 14,
     color: "#888",
     fontWeight: "500",
+    marginTop: 2,
   },
   statusIndicator: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
     alignSelf: "flex-start",
   },
   statusText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  typeIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+  },
+  typeText: {
+    color: "#fff",
+    fontSize: 11,
     fontWeight: "bold",
   },
   title: {

@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   TextInput,
+  Alert,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ContactComp from "../Components/ContactComp";
@@ -21,40 +23,113 @@ export default function ContactsScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // Mock data for fallback
-  const mockContacts = [
-    {
-      UserId: "1",
-      FirstName: "יוסי",
-      LastName: "כהן",
-      phoneNumber: "050-1234567",
-      Email: "yossi@example.com",
-      Role: "emergency",
-      specialty: "כיבוי אש",
-    },
-    {
-      UserId: "2",
-      FirstName: "רחל",
-      LastName: "לוי",
-      phoneNumber: "050-2345678",
-      Email: "rachel@example.com",
-      Role: "volunteer",
-      specialty: "עזרה ראשונה",
-    },
-    {
-      UserId: "3",
-      FirstName: "דוד",
-      LastName: "אברהם",
-      phoneNumber: "050-3456789",
-      Email: "david@example.com",
-      Role: "emergency",
-      specialty: "חילוץ",
-    },
-  ];
-
   useEffect(() => {
     fetchContacts();
   }, []);
+
+  // Handle phone call
+  const handlePhoneCall = (phoneNumber, contactName) => {
+    console.log("=== DEBUG PHONE CALL ===");
+    console.log("phoneNumber raw:", phoneNumber);
+    console.log("phoneNumber type:", typeof phoneNumber);
+    console.log("contactName:", contactName);
+
+    // Multiple checks for undefined/null/empty
+    if (
+      phoneNumber === undefined ||
+      phoneNumber === null ||
+      phoneNumber === "" ||
+      !phoneNumber
+    ) {
+      console.log("Phone number is invalid or empty");
+      Alert.alert("שגיאה", "מספר טלפון לא זמין עבור איש קשר זה");
+      return;
+    }
+
+    // Convert to string safely
+    let phoneStr;
+    try {
+      phoneStr = String(phoneNumber);
+      console.log("phoneStr after String conversion:", phoneStr);
+    } catch (error) {
+      console.log("Error converting to string:", error);
+      Alert.alert("שגיאה", "מספר טלפון לא תקין");
+      return;
+    }
+
+    // Check if string is empty
+    if (!phoneStr || phoneStr.trim() === "") {
+      console.log("Phone string is empty after conversion");
+      Alert.alert("שגיאה", "מספר טלפון ריק");
+      return;
+    }
+
+    // Clean phone number safely
+    let cleanNumber;
+    try {
+      cleanNumber = phoneStr.replace(/[^\d+]/g, "");
+      console.log("cleanNumber:", cleanNumber);
+    } catch (error) {
+      console.log("Error in replace:", error);
+      Alert.alert("שגיאה", "שגיאה בעיבוד מספר הטלפון");
+      return;
+    }
+
+    if (!cleanNumber || cleanNumber.length === 0) {
+      console.log("Clean number is empty");
+      Alert.alert("שגיאה", "מספר טלפון לא תקין");
+      return;
+    }
+
+    Alert.alert(
+      "התקשר לאיש קשר",
+      `האם תרצה להתקשר ל${contactName}?\n${phoneStr}`,
+      [
+        { text: "ביטול", style: "cancel" },
+        {
+          text: "התקשר",
+          onPress: () => {
+            const phoneUrl = `tel:${cleanNumber}`;
+            console.log("Opening phone URL:", phoneUrl);
+            Linking.canOpenURL(phoneUrl)
+              .then((supported) => {
+                if (supported) {
+                  return Linking.openURL(phoneUrl);
+                } else {
+                  Alert.alert("שגיאה", "לא ניתן לבצע שיחות מהמכשיר הזה");
+                }
+              })
+              .catch((error) => {
+                console.error("Error making phone call:", error);
+                Alert.alert("שגיאה", "אירעה שגיאה בביצוע השיחה");
+              });
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle email
+  const handleEmail = (email, contactName) => {
+    if (!email) {
+      Alert.alert("שגיאה", "כתובת אימייל לא זמינה עבור איש קשר זה");
+      return;
+    }
+
+    const emailUrl = `mailto:${email}`;
+    Linking.canOpenURL(emailUrl)
+      .then((supported) => {
+        if (supported) {
+          return Linking.openURL(emailUrl);
+        } else {
+          Alert.alert("שגיאה", "לא ניתן לפתוח אפליקציית אימייל");
+        }
+      })
+      .catch((error) => {
+        console.error("Error opening email:", error);
+        Alert.alert("שגיאה", "אירעה שגיאה בפתיחת אימייל");
+      });
+  };
 
   // Use memoized filter function to prevent unnecessary re-renders
   const filterContacts = useCallback(() => {
@@ -109,8 +184,11 @@ export default function ContactsScreen({ navigation }) {
 
   const fetchContacts = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      // Try to fetch contacts from API
+      console.log("Fetching contacts from:", `${API_URL}User`);
+
       const response = await fetch(`${API_URL}User`, {
         method: "GET",
         headers: {
@@ -124,11 +202,13 @@ export default function ContactsScreen({ navigation }) {
       }
 
       const text = await response.text();
+      console.log("Raw response:", text);
 
       // Check if response is empty or null
       if (!text || text === "null" || text === "") {
-        console.log("No contacts found in API, using mock data");
-        setContacts(mockContacts);
+        console.log("No contacts found in API");
+        setContacts([]);
+        setError("לא נמצאו אנשי קשר במערכת");
       } else {
         // Try to parse the response as JSON
         try {
@@ -151,21 +231,20 @@ export default function ContactsScreen({ navigation }) {
             console.log("Transformed contacts:", transformedContacts);
             setContacts(transformedContacts);
           } else {
-            console.log("Invalid contacts data, using mock data");
-            setContacts(mockContacts);
+            console.log("No valid contacts data received");
+            setContacts([]);
+            setError("לא נמצאו אנשי קשר במערכת");
           }
         } catch (parseError) {
           console.error("Error parsing contacts JSON:", parseError);
-          // If parsing fails, use mock data
-          setContacts(mockContacts);
+          setContacts([]);
+          setError("שגיאה בעיבוד נתוני אנשי הקשר");
         }
       }
-      setError(null);
     } catch (error) {
       console.error("Error fetching contacts:", error);
-      setError("לא ניתן לטעון את אנשי הקשר כרגע");
-      // Use mock data as fallback
-      setContacts(mockContacts);
+      setError("לא ניתן לטעון את אנשי הקשר כרגע. בדוק את החיבור לאינטרנט.");
+      setContacts([]);
     } finally {
       setLoading(false);
     }
@@ -181,8 +260,43 @@ export default function ContactsScreen({ navigation }) {
   };
 
   const handleContactPress = (contact) => {
-    console.log("Contact pressed:", contact);
-    // Here you can add navigation to a contact details screen if needed
+    console.log("=== FULL CONTACT DEBUG ===");
+    console.log("Full contact object:", JSON.stringify(contact, null, 2));
+    console.log("Contact keys:", Object.keys(contact));
+
+    // Try ALL possible field names for phone number
+    const phoneNumber =
+      contact.phoneNumber ||
+      contact.PhoneNumber ||
+      contact.phone ||
+      contact.Phone ||
+      contact.mobile ||
+      contact.Mobile ||
+      contact.cellPhone ||
+      contact.CellPhone;
+
+    console.log("Final phoneNumber selected:", phoneNumber);
+
+    const contactName = `${contact.FirstName || ""} ${
+      contact.LastName || ""
+    }`.trim();
+
+    // Show contact options
+    Alert.alert(contactName || "איש קשר", "בחר פעולה:", [
+      { text: "ביטול", style: "cancel" },
+      {
+        text: "התקשר",
+        onPress: () => handlePhoneCall(phoneNumber, contactName),
+      },
+      ...(contact.Email
+        ? [
+            {
+              text: "שלח אימייל",
+              onPress: () => handleEmail(contact.Email, contactName),
+            },
+          ]
+        : []),
+    ]);
   };
 
   const handleRefresh = () => {
@@ -230,96 +344,99 @@ export default function ContactsScreen({ navigation }) {
           />
         </View>
 
-        <View style={styles.categoriesContainer}>
-          <TouchableOpacity
-            style={[
-              styles.categoryButton,
-              selectedCategory === "all" && styles.activeCategory,
-            ]}
-            onPress={() => handleCategoryChange("all")}
-          >
-            <Text
-              style={
-                selectedCategory === "all"
-                  ? styles.activeCategoryText
-                  : styles.categoryText
-              }
+        {contacts.length > 0 && (
+          <View style={styles.categoriesContainer}>
+            <TouchableOpacity
+              style={[
+                styles.categoryButton,
+                selectedCategory === "all" && styles.activeCategory,
+              ]}
+              onPress={() => handleCategoryChange("all")}
             >
-              הכל ({contacts.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.categoryButton,
-              selectedCategory === "emergency" && styles.activeCategory,
-            ]}
-            onPress={() => handleCategoryChange("emergency")}
-          >
-            <Text
-              style={
-                selectedCategory === "emergency"
-                  ? styles.activeCategoryText
-                  : styles.categoryText
-              }
-            >
-              צוות חירום (
-              {
-                contacts.filter((c) => (c.Role || c.role) === "emergency")
-                  .length
-              }
-              )
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.categoryButton,
-              selectedCategory === "volunteer" && styles.activeCategory,
-            ]}
-            onPress={() => handleCategoryChange("volunteer")}
-          >
-            <Text
-              style={
-                selectedCategory === "volunteer"
-                  ? styles.activeCategoryText
-                  : styles.categoryText
-              }
-            >
-              מתנדבים (
-              {
-                contacts.filter((c) => (c.Role || c.role) === "volunteer")
-                  .length
-              }
-              )
-            </Text>
-          </TouchableOpacity>
-
-          {/* Dynamic buttons for other roles found in data */}
-          {availableRoles
-            .filter((role) => !["emergency", "volunteer"].includes(role))
-            .map((role) => (
-              <TouchableOpacity
-                key={role}
-                style={[
-                  styles.categoryButton,
-                  selectedCategory === role && styles.activeCategory,
-                ]}
-                onPress={() => handleCategoryChange(role)}
+              <Text
+                style={
+                  selectedCategory === "all"
+                    ? styles.activeCategoryText
+                    : styles.categoryText
+                }
               >
-                <Text
-                  style={
-                    selectedCategory === role
-                      ? styles.activeCategoryText
-                      : styles.categoryText
-                  }
+                הכל ({contacts.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.categoryButton,
+                selectedCategory === "emergency" && styles.activeCategory,
+              ]}
+              onPress={() => handleCategoryChange("emergency")}
+            >
+              <Text
+                style={
+                  selectedCategory === "emergency"
+                    ? styles.activeCategoryText
+                    : styles.categoryText
+                }
+              >
+                צוות חירום (
+                {
+                  contacts.filter((c) => (c.Role || c.role) === "emergency")
+                    .length
+                }
+                )
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.categoryButton,
+                selectedCategory === "volunteer" && styles.activeCategory,
+              ]}
+              onPress={() => handleCategoryChange("volunteer")}
+            >
+              <Text
+                style={
+                  selectedCategory === "volunteer"
+                    ? styles.activeCategoryText
+                    : styles.categoryText
+                }
+              >
+                מתנדבים (
+                {
+                  contacts.filter((c) => (c.Role || c.role) === "volunteer")
+                    .length
+                }
+                )
+              </Text>
+            </TouchableOpacity>
+
+            {/* Dynamic buttons for other roles found in data */}
+            {availableRoles
+              .filter((role) => !["emergency", "volunteer"].includes(role))
+              .map((role) => (
+                <TouchableOpacity
+                  key={role}
+                  style={[
+                    styles.categoryButton,
+                    selectedCategory === role && styles.activeCategory,
+                  ]}
+                  onPress={() => handleCategoryChange(role)}
                 >
-                  {role} (
-                  {contacts.filter((c) => (c.Role || c.role) === role).length})
-                </Text>
-              </TouchableOpacity>
-            ))}
-        </View>
+                  <Text
+                    style={
+                      selectedCategory === role
+                        ? styles.activeCategoryText
+                        : styles.categoryText
+                    }
+                  >
+                    {role} (
+                    {contacts.filter((c) => (c.Role || c.role) === role).length}
+                    )
+                  </Text>
+                </TouchableOpacity>
+              ))}
+          </View>
+        )}
       </View>
     );
   });
@@ -346,11 +463,12 @@ export default function ContactsScreen({ navigation }) {
         ListHeaderComponent={<ListHeader />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
+            <Ionicons name="people-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>
               {error ||
                 (searchQuery
                   ? `לא נמצאו תוצאות עבור "${searchQuery}"`
-                  : "לא נמצאו אנשי קשר")}
+                  : "לא נמצאו אנשי קשר במערכת")}
             </Text>
             <TouchableOpacity
               style={styles.retryButton}
@@ -453,6 +571,7 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     marginBottom: 16,
+    marginTop: 16,
   },
   retryButton: {
     backgroundColor: "#9610FF",
@@ -464,16 +583,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "500",
-  },
-  debugContainer: {
-    backgroundColor: "#f0f0f0",
-    padding: 8,
-    borderRadius: 5,
-    marginTop: 8,
-  },
-  debugText: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center",
   },
 });
