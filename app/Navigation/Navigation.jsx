@@ -13,6 +13,7 @@ import EventDetailsScreen from "../Screens/EventDetailsScreen";
 import EventLogDetailsScreen from "../Screens/EventLogDetailsScreen";
 import SettingsScreen from "../Screens/SettingsScreen";
 import ResourcesScreen from "../Screens/ResourcesScreen";
+import ActiveReportsScreen from "../Screens/ActiveReportsScreen";
 
 import {
   Ionicons,
@@ -37,6 +38,7 @@ function HomeStack() {
       <Stack.Screen name="EventDetailsScreen" component={EventDetailsScreen} />
       <Stack.Screen name="הגדרות" component={SettingsScreen} />
       <Stack.Screen name="משאבים" component={ResourcesScreen} />
+      <Stack.Screen name="דיווחים" component={ActiveReportsScreen} />
     </Stack.Navigator>
   );
 }

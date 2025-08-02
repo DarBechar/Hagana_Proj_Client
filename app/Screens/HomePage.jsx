@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,10 +20,41 @@ import EmergencyAlertModal from "../Components/EmergencyAlertModal";
 import { useNavigation } from "@react-navigation/native";
 
 import User from "../Constants/Utils";
+import { fetchActiveReportsCount } from "../Constants/MockReportsData";
 
 const HomeScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [openReportsCount, setOpenReportsCount] = useState(0);
+  const [isLoadingReports, setIsLoadingReports] = useState(true);
   const navigation = useNavigation();
+
+  // Mock data for open reports count
+  useEffect(() => {
+    fetchOpenReportsCount();
+
+    // Optional: Set up interval to refresh count every 10 seconds (for demo)
+    const interval = setInterval(fetchOpenReportsCount, 10000);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchOpenReportsCount = async () => {
+    try {
+      setIsLoadingReports(true);
+
+      // Use shared mock data
+      const count = await fetchActiveReportsCount();
+      setOpenReportsCount(count);
+
+      console.log(`Loaded: ${count} דיווחים פעילים`);
+    } catch (error) {
+      console.error("Error fetching reports count:", error);
+      setOpenReportsCount(0);
+    } finally {
+      setIsLoadingReports(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -32,14 +63,49 @@ const HomeScreen = () => {
       {/* Header with Logo */}
       <View style={styles.header}>
         <Image
-          source={require("../../assets/images/Hagana_Logo.png")} // Replace with your logo path
+          source={require("../../assets/images/Hagana_Logo.png")}
           style={styles.logo}
         />
       </View>
 
       {/* Status Bar */}
-
       <StatusIndicator status="normal" />
+
+      {/* Reports Indicator - Above Menu */}
+      <TouchableOpacity
+        style={styles.reportsIndicator}
+        onPress={() => navigation.navigate("דיווחים")}
+        activeOpacity={0.7}
+      >
+        <View style={styles.reportsContent}>
+          <View style={styles.reportsTextContainer}>
+            <Text style={styles.reportsTitle}>דיווחים פעילים</Text>
+            {isLoadingReports ? (
+              <Text style={styles.loadingText}>טוען...</Text>
+            ) : (
+              <Text style={styles.reportsCount}>
+                {openReportsCount === 0
+                  ? "אין דיווחים פעילים"
+                  : `${openReportsCount} דיווחים פתוחים`}
+              </Text>
+            )}
+          </View>
+          <View style={styles.reportsIconContainer}>
+            {openReportsCount > 0 && (
+              <View style={styles.alertBadge}>
+                <Text style={styles.alertBadgeText}>
+                  {openReportsCount > 99 ? "99+" : openReportsCount}
+                </Text>
+              </View>
+            )}
+            <MaterialCommunityIcons
+              name="file-document-outline"
+              size={28}
+              color={openReportsCount > 0 ? "#ff4444" : "#666"}
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
 
       {/* Menu Items */}
       <View style={styles.menuContainer}>
@@ -63,29 +129,7 @@ const HomeScreen = () => {
         {/* Divider */}
         <View style={styles.divider} />
 
-        {/* Second Menu Item */}
-        {/* <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => navigation.navigate("")}
-        >
-          <View style={styles.menuContent}>
-            <Text style={styles.menuText}>דוחות</Text>
-            <View
-              style={[styles.iconContainer, { backgroundColor: "#e3f1fa" }]}
-            >
-              <MaterialCommunityIcons
-                name="file-document-outline"
-                size={24}
-                color="#3d8bcd"
-              />
-            </View>
-          </View>
-        </TouchableOpacity> */}
-
-        {/* Divider */}
-        <View style={styles.divider} />
-
-        {/* Third Menu Item */}
+        {/* Inventory Menu Item */}
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() => navigation.navigate("משאבים")}
@@ -103,7 +147,7 @@ const HomeScreen = () => {
         {/* Divider */}
         <View style={styles.divider} />
 
-        {/* Fourth Menu Item */}
+        {/* Event Log Menu Item */}
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() => navigation.navigate("EventLogScreen")}
@@ -121,27 +165,8 @@ const HomeScreen = () => {
             </View>
           </View>
         </TouchableOpacity>
-        <View style={styles.divider} />
-
-        {/* Show Alert Menu Item */}
-        {/* <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => setModalVisible(true)}
-        >
-          <View style={styles.menuContent}>
-            <Text style={styles.menuText}>Show Alert</Text>
-            <View
-              style={[styles.iconContainer, { backgroundColor: "#f9ebeb" }]}
-            >
-              <MaterialCommunityIcons
-                name="folder-open-outline"
-                size={24}
-                color="#d64e4e"
-              />
-            </View>
-          </View>
-        </TouchableOpacity> */}
       </View>
+
       <View>
         <EmergencyAlertModal
           visible={modalVisible}
@@ -222,6 +247,69 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: 15,
     textAlign: "right",
+  },
+  reportsIndicator: {
+    marginHorizontal: 20,
+    marginTop: 15,
+    marginBottom: 10,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: "#3d8bcd",
+  },
+  reportsContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  reportsTextContainer: {
+    flex: 1,
+  },
+  reportsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "right",
+    marginBottom: 4,
+  },
+  reportsCount: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "right",
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "#3d8bcd",
+    textAlign: "right",
+  },
+  reportsIconContainer: {
+    position: "relative",
+    marginLeft: 12,
+  },
+  alertBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#ff4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    zIndex: 1,
+  },
+  alertBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+    textAlign: "center",
   },
   iconContainer: {
     width: 40,
