@@ -235,7 +235,7 @@ const ReportDetailsScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-forward" size={24} color="#333" />
+            <Ionicons name="chevron-back" size={28} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>פרטי דיווח</Text>
         </View>
@@ -400,10 +400,18 @@ const ReportDetailsScreen = () => {
         {/* Action Buttons */}
         <View style={styles.btnSection}>
           <TouchableOpacity
-            style={styles.secondaryBtn}
-            onPress={() => navigation.goBack()}
+            style={[
+              styles.secondaryBtn,
+              isClosingReport && styles.closeButtonDisabled,
+            ]}
+            onPress={handleCloseReport}
+            disabled={isClosingReport}
           >
-            <Text style={styles.secondaryBtnText}>חזרה</Text>
+            {isClosingReport ? (
+              <Text style={styles.secondaryBtnText}>סוגר דיווח...</Text>
+            ) : (
+              <Text style={styles.secondaryBtnText}>סגור דיווח</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -414,33 +422,9 @@ const ReportDetailsScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Close Report Button */}
-        <View style={styles.closeSection}>
-          <TouchableOpacity
-            style={[
-              styles.closeButton,
-              isClosingReport && styles.closeButtonDisabled,
-            ]}
-            onPress={handleCloseReport}
-            disabled={isClosingReport}
-          >
-            {isClosingReport ? (
-              <View style={styles.loadingContainer}>
-                <MaterialIcons name="hourglass-empty" size={20} color="white" />
-                <Text style={styles.closeButtonText}>סוגר דיווח...</Text>
-              </View>
-            ) : (
-              <View style={styles.buttonContent}>
-                <MaterialIcons name="check-circle" size={20} color="white" />
-                <Text style={styles.closeButtonText}>סגור דיווח</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <Text style={styles.warningText}>
-            💡 ניתן ליצור אירוע חירום מהדיווח או לסגור אותו כמטופל
-          </Text>
-        </View>
+        <Text style={styles.warningText}>
+          💡 ניתן ליצור אירוע חירום מהדיווח או לסגור אותו כמטופל
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -681,18 +665,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "regular",
   },
-  closeSection: {
-    marginTop: 8,
-    marginBottom: 32,
+  closeButtonDisabled: {
+    backgroundColor: "#f0f0f0",
+    borderColor: "#ccc",
   },
-  closeButton: {
-    backgroundColor: "#ff4444",
-    borderRadius: 30,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 20,
+  warningText: {
+    fontSize: 12,
+    color: "#ff6b35",
+    textAlign: "center",
+    marginTop: 12,
+    marginBottom: 32,
+    paddingHorizontal: 16,
+    lineHeight: 16,
   },
   closeButtonDisabled: {
     backgroundColor: "#ccc",

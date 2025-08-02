@@ -162,7 +162,7 @@ const ActiveReportsScreen = () => {
       style={styles.reportCard}
       onPress={() => {
         // Navigate to report details
-        console.log("Opening report details for:", item.reportCode);
+        navigation.navigate("פרטי דיווח", { reportId: item.id });
       }}
       activeOpacity={0.7}
     >
@@ -189,12 +189,12 @@ const ActiveReportsScreen = () => {
             </Text>
           </View>
         </View>
-        {/* <TouchableOpacity
+        <TouchableOpacity
           style={styles.closeButton}
           onPress={() => closeReport(item.id)}
         >
           <Ionicons name="close-circle" size={24} color="#ff4444" />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.eventType}>{item.eventTypeName}</Text>
@@ -233,7 +233,7 @@ const ActiveReportsScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-forward" size={24} color="#333" />
+            <Ionicons name="chevron-back" size={28} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>דיווחים פעילים</Text>
         </View>
@@ -255,7 +255,7 @@ const ActiveReportsScreen = () => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-forward" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={28} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>דיווחים פעילים</Text>
       </View>
