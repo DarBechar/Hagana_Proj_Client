@@ -1,53 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
   Image,
-  Alert,
 } from "react-native";
 import {
   Ionicons,
   MaterialIcons,
   MaterialCommunityIcons,
+  FontAwesome5,
 } from "@expo/vector-icons";
 import StatusIndicator from "../Components/StatusIndicatorComp";
 import EmergencyAlertModal from "../Components/EmergencyAlertModal";
-import User from "../Constants/Utils";
 import { useNavigation } from "@react-navigation/native";
-import { useEmergency } from "../Context/EmergencyContext";
+
+import User from "../Constants/Utils";
 
 const HomeScreen = () => {
-  //state variables
-  const { hasActiveEmergency, activeEvent, refreshEmergencyStatus } =
-    useEmergency();
-
   const [modalVisible, setModalVisible] = useState(false);
-  const villageStatus = hasActiveEmergency ? "emergency" : "normal";
-
   const navigation = useNavigation();
-
-  const handleStatusPress = () => {
-    if (activeEvent) {
-      // Navigate to event details screen
-      navigation.navigate("אירוע חירום", { event: activeEvent });
-    }
-  };
-
-  useEffect(() => {
-    refreshEmergencyStatus();
-
-    // Set up interval for regular checks (every 30 seconds)
-    const intervalId = setInterval(() => {
-      refreshEmergencyStatus();
-    }, 30000); // 30 seconds
-
-    // Clean up interval when component unmounts
-    return () => clearInterval(intervalId);
-  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,26 +39,15 @@ const HomeScreen = () => {
 
       {/* Status Bar */}
 
-      <TouchableOpacity
-        activeOpacity={activeEvent ? 0.7 : 1}
-        onPress={handleStatusPress}
-      >
-        <StatusIndicator status={villageStatus} />
-        {activeEvent && (
-          <Text
-            style={{
-              textAlign: "center",
-              fontSize: 12,
-              color: "#d32f2f",
-              marginTop: 5,
-            }}
-          ></Text>
-        )}
-      </TouchableOpacity>
+      <StatusIndicator status="normal" />
+
       {/* Menu Items */}
       <View style={styles.menuContainer}>
-        {/* First Menu Item */}
-        <TouchableOpacity style={styles.menuItem}>
+        {/* First Menu Item - User Profile */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("הגדרות")}
+        >
           <View style={styles.menuContent}>
             <Text style={styles.menuText}>
               {User.FirstName + " " + User.LastName}
@@ -99,7 +64,10 @@ const HomeScreen = () => {
         <View style={styles.divider} />
 
         {/* Second Menu Item */}
-        <TouchableOpacity style={styles.menuItem}>
+        {/* <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("")}
+        >
           <View style={styles.menuContent}>
             <Text style={styles.menuText}>דוחות</Text>
             <View
@@ -112,13 +80,16 @@ const HomeScreen = () => {
               />
             </View>
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Divider */}
         <View style={styles.divider} />
 
         {/* Third Menu Item */}
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("משאבים")}
+        >
           <View style={styles.menuContent}>
             <Text style={styles.menuText}>מלאי</Text>
             <View
@@ -135,12 +106,10 @@ const HomeScreen = () => {
         {/* Fourth Menu Item */}
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => {
-            navigation.navigate("EventLogScreen");
-          }}
+          onPress={() => navigation.navigate("EventLogScreen")}
         >
           <View style={styles.menuContent}>
-            <Text style={styles.menuText}>יומן אירועים</Text>
+            <Text style={styles.menuText}>לוג אירועים</Text>
             <View
               style={[styles.iconContainer, { backgroundColor: "#f9ebeb" }]}
             >
@@ -154,8 +123,8 @@ const HomeScreen = () => {
         </TouchableOpacity>
         <View style={styles.divider} />
 
-        {/* Fourth Menu Item */}
-        <TouchableOpacity
+        {/* Show Alert Menu Item */}
+        {/* <TouchableOpacity
           style={styles.menuItem}
           onPress={() => setModalVisible(true)}
         >
@@ -171,7 +140,7 @@ const HomeScreen = () => {
               />
             </View>
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
       <View>
         <EmergencyAlertModal

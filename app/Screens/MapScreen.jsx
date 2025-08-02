@@ -6,36 +6,44 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
-  Image,
   Platform,
   StatusBar,
   Animated,
   ActivityIndicator,
   SafeAreaView,
   Alert,
+  Linking,
+  ScrollView,
 } from "react-native";
-import MapView, { Marker, Callout } from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
-import { MaterialIcons, FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { API_URL } from "../Constants/Utils";
 
 const { width, height } = Dimensions.get("window");
-const CARD_HEIGHT = 300;
-const CARD_WIDTH = width * 0.8;
+const CARD_HEIGHT = 400;
 
 const MapScreen = () => {
+  // Navigation and route
+  const navigation = useNavigation();
+  const route = useRoute();
+
+  // Get resource location from navigation params
+  const resourceLocation = route.params?.location;
+
   // Refs
   const mapRef = useRef(null);
   const markerRefs = useRef({});
 
   // States
   const [region, setRegion] = useState({
-    latitude: 32.3015,
-    longitude: 34.851,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
+    latitude: resourceLocation?.latitude || 32.3015,
+    longitude: resourceLocation?.longitude || 34.851,
+    latitudeDelta: resourceLocation ? 0.005 : 0.01,
+    longitudeDelta: resourceLocation ? 0.005 : 0.01,
   });
   const [currentLocation, setCurrentLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,12 +81,15 @@ const MapScreen = () => {
           longitude,
         });
 
-        setRegion({
-          latitude,
-          longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
+        // If no specific resource location, center on user location
+        if (!resourceLocation) {
+          setRegion({
+            latitude,
+            longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+        }
 
         console.log("Got user location:", latitude, longitude);
       } catch (error) {
@@ -92,6 +103,53 @@ const MapScreen = () => {
     // Load equipment data from server
     loadEquipmentFromServer();
   }, []);
+
+  // Focus on specific resource when navigated from resources screen
+  useEffect(() => {
+    if (
+      resourceLocation &&
+      mapRef.current &&
+      !isLoading &&
+      markers.length > 0
+    ) {
+      const resourceRegion = {
+        latitude: resourceLocation.latitude,
+        longitude: resourceLocation.longitude,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      };
+
+      // Animate to resource location after a short delay
+      setTimeout(() => {
+        mapRef.current.animateToRegion(resourceRegion, 1000);
+
+        // Auto-select the resource marker if it exists
+        setTimeout(() => {
+          // Create a marker for the specific resource if it came from ResourcesScreen
+          if (resourceLocation.title) {
+            const specificResourceMarker = {
+              id: "specific_resource",
+              type: "equipment",
+              coordinate: {
+                latitude: resourceLocation.latitude,
+                longitude: resourceLocation.longitude,
+              },
+              title: resourceLocation.title,
+              label: resourceLocation.resourceType,
+              description: resourceLocation.description,
+              resourceType: resourceLocation.resourceType,
+              location: resourceLocation.description,
+              contactName: resourceLocation.contactName,
+              contactPhone: resourceLocation.contactPhone,
+              status: "available",
+            };
+
+            onMarkerPress(specificResourceMarker);
+          }
+        }, 1500);
+      }, 500);
+    }
+  }, [resourceLocation, markers, isLoading]);
 
   // Load equipment data from server
   const loadEquipmentFromServer = async () => {
@@ -132,7 +190,7 @@ const MapScreen = () => {
         cityName: item.CityName,
         categoryName: item.CategoryName,
         expirationDate: item.ExpirationDate,
-        status: "available", // Default status - you can add logic to determine actual status
+        status: "available",
       }));
 
       setMarkers(equipmentMarkers);
@@ -244,6 +302,81 @@ const MapScreen = () => {
     });
   };
 
+  // Handle navigation to resource
+  const handleNavigateToResource = () => {
+    if (!selectedMarker) return;
+
+    const { latitude, longitude } = selectedMarker.coordinate;
+
+    Alert.alert(
+      "ניווט למשאב",
+      `האם תרצה לפתוח ניווט ל${selectedMarker.title}?`,
+      [
+        { text: "ביטול", style: "cancel" },
+        {
+          text: "Google Maps",
+          onPress: () => {
+            const googleMapsUrl =
+              Platform.OS === "ios"
+                ? `maps://app?daddr=${latitude},${longitude}`
+                : `google.navigation:q=${latitude},${longitude}`;
+
+            Linking.canOpenURL(googleMapsUrl)
+              .then((supported) => {
+                if (supported) {
+                  return Linking.openURL(googleMapsUrl);
+                } else {
+                  // Fallback to web Google Maps
+                  const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+                  return Linking.openURL(webUrl);
+                }
+              })
+              .catch((error) => {
+                console.error("Error opening navigation:", error);
+                Alert.alert("שגיאה", "לא ניתן לפתוח ניווט");
+              });
+          },
+        },
+        {
+          text: "Waze",
+          onPress: () => {
+            const wazeUrl = `waze://?ll=${latitude},${longitude}&navigate=yes`;
+
+            Linking.canOpenURL(wazeUrl)
+              .then((supported) => {
+                if (supported) {
+                  return Linking.openURL(wazeUrl);
+                } else {
+                  Alert.alert("Waze לא זמין", "Waze לא מותקן במכשיר");
+                }
+              })
+              .catch((error) => {
+                console.error("Error opening Waze:", error);
+                Alert.alert("שגיאה", "לא ניתן לפתוח Waze");
+              });
+          },
+        },
+      ]
+    );
+  };
+  const handleCall = (phoneNumber, contactName) => {
+    if (!phoneNumber) return;
+
+    Alert.alert("התקשר", `האם ברצונך להתקשר ל${contactName}?\n${phoneNumber}`, [
+      { text: "ביטול", style: "cancel" },
+      {
+        text: "התקשר",
+        onPress: () => {
+          const phoneUrl = `tel:${phoneNumber.replace(/[^\d+]/g, "")}`;
+          Linking.openURL(phoneUrl).catch((error) => {
+            console.error("Error making phone call:", error);
+            Alert.alert("שגיאה", "אירעה שגיאה בביצוע השיחה");
+          });
+        },
+      },
+    ]);
+  };
+
   // Render equipment detail modal content
   const renderEquipmentDetailContent = () => {
     if (!selectedMarker) return null;
@@ -263,103 +396,126 @@ const MapScreen = () => {
         </View>
 
         <View style={styles.detailContent}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>סטטוס:</Text>
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor:
-                    selectedMarker.status === "available"
-                      ? "#e8f5e9"
-                      : "#ffebee",
-                },
-              ]}
-            >
-              <Text
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>סטטוס:</Text>
+              <View
                 style={[
-                  styles.statusText,
+                  styles.statusBadge,
                   {
-                    color:
+                    backgroundColor:
                       selectedMarker.status === "available"
-                        ? "#2e7d32"
-                        : "#c62828",
+                        ? "#e8f5e9"
+                        : "#ffebee",
                   },
                 ]}
               >
-                {selectedMarker.status === "available" ? "זמין" : "לא זמין"}
+                <Text
+                  style={[
+                    styles.statusText,
+                    {
+                      color:
+                        selectedMarker.status === "available"
+                          ? "#2e7d32"
+                          : "#c62828",
+                    },
+                  ]}
+                >
+                  {selectedMarker.status === "available" ? "זמין" : "לא זמין"}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>סוג ציוד:</Text>
+              <Text style={styles.detailValue}>
+                {selectedMarker.resourceType}
               </Text>
             </View>
-          </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>סוג ציוד:</Text>
-            <Text style={styles.detailValue}>
-              {selectedMarker.resourceType}
-            </Text>
-          </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>מיקום:</Text>
+              <Text style={styles.detailValue}>{selectedMarker.location}</Text>
+            </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>מיקום:</Text>
-            <Text style={styles.detailValue}>{selectedMarker.location}</Text>
-          </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>איש קשר:</Text>
+              <Text style={styles.detailValue}>
+                {selectedMarker.contactName}
+              </Text>
+            </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>איש קשר:</Text>
-            <Text style={styles.detailValue}>{selectedMarker.contactName}</Text>
-          </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>טלפון:</Text>
+              <Text style={styles.detailValue}>
+                {selectedMarker.contactPhone}
+              </Text>
+            </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>טלפון:</Text>
-            <Text style={styles.detailValue}>
-              {selectedMarker.contactPhone}
-            </Text>
-          </View>
+            {selectedMarker.teamName && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>צוות:</Text>
+                <Text style={styles.detailValue}>
+                  {selectedMarker.teamName}
+                </Text>
+              </View>
+            )}
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>צוות:</Text>
-            <Text style={styles.detailValue}>{selectedMarker.teamName}</Text>
-          </View>
+            {selectedMarker.cityName && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>עיר:</Text>
+                <Text style={styles.detailValue}>
+                  {selectedMarker.cityName}
+                </Text>
+              </View>
+            )}
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>עיר:</Text>
-            <Text style={styles.detailValue}>{selectedMarker.cityName}</Text>
-          </View>
+            {selectedMarker.categoryName && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>קטגוריה:</Text>
+                <Text style={styles.detailValue}>
+                  {selectedMarker.categoryName}
+                </Text>
+              </View>
+            )}
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>קטגוריה:</Text>
-            <Text style={styles.detailValue}>
-              {selectedMarker.categoryName}
-            </Text>
-          </View>
+            {selectedMarker.expirationDate && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>תאריך פקיעה:</Text>
+                <Text style={styles.detailValue}>
+                  {formatDate(selectedMarker.expirationDate)}
+                </Text>
+              </View>
+            )}
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>תאריך פקיעה:</Text>
-            <Text style={styles.detailValue}>
-              {formatDate(selectedMarker.expirationDate)}
-            </Text>
-          </View>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() =>
+                handleCall(
+                  selectedMarker.contactPhone,
+                  selectedMarker.contactName
+                )
+              }
+            >
+              <Text style={styles.actionButtonText}>התקשר לאיש קשר</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => {
-              // You can add logic here to call the contact person
-              Alert.alert(
-                "התקשר",
-                `האם ברצונך להתקשר ל${selectedMarker.contactName}?`,
-                [
-                  { text: "ביטול", style: "cancel" },
-                  {
-                    text: "התקשר",
-                    onPress: () =>
-                      console.log("Calling:", selectedMarker.contactPhone),
-                  },
-                ]
-              );
-            }}
-          >
-            <Text style={styles.actionButtonText}>התקשר לאיש קשר</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.navigationButton]}
+              onPress={handleNavigateToResource}
+            >
+              <MaterialIcons
+                name="directions"
+                size={18}
+                color="white"
+                style={{ marginLeft: 5 }}
+              />
+              <Text style={styles.actionButtonText}>נווט למיקום</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </>
     );
@@ -387,6 +543,16 @@ const MapScreen = () => {
         backgroundColor="transparent"
         translucent
       />
+
+      {/* Back Button (only show when navigated from resource) */}
+      {resourceLocation && (
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchBar}>
@@ -422,7 +588,7 @@ const MapScreen = () => {
       </View>
 
       {/* Refresh Button */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.refreshButton}
         onPress={refreshEquipmentData}
         disabled={equipmentLoading}
@@ -432,7 +598,7 @@ const MapScreen = () => {
         ) : (
           <MaterialIcons name="refresh" size={24} color="#333" />
         )}
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Map View */}
       <MapView
@@ -442,7 +608,7 @@ const MapScreen = () => {
         showsUserLocation={true}
         showsMyLocationButton={false}
         onRegionChangeComplete={setRegion}
-        showsCompass={true}
+        showsCompass={false}
         compassOffset={{ x: 0, y: 50 }}
       >
         {/* Current User Location Marker */}
@@ -478,6 +644,32 @@ const MapScreen = () => {
             </View>
           </Marker>
         ))}
+
+        {/* Special marker for specific resource if navigated from ResourcesScreen */}
+        {resourceLocation && resourceLocation.title && (
+          <Marker
+            coordinate={{
+              latitude: resourceLocation.latitude,
+              longitude: resourceLocation.longitude,
+            }}
+            title={resourceLocation.title}
+            description={resourceLocation.description}
+            pinColor="red"
+          >
+            <View style={styles.markerWrapper}>
+              <View
+                style={[styles.markerContainer, styles.selectedResourceMarker]}
+              >
+                <MaterialIcons name="place" size={24} color="white" />
+              </View>
+              <View style={styles.markerLabelContainer}>
+                <Text style={styles.markerLabel}>
+                  {resourceLocation.resourceType}
+                </Text>
+              </View>
+            </View>
+          </Marker>
+        )}
       </MapView>
 
       {/* Current Location Button */}
@@ -528,10 +720,27 @@ const styles = StyleSheet.create({
     width: Dimensions.get("window").width,
     height: Dimensions.get("window").height,
   },
+  backButton: {
+    position: "absolute",
+    left: 16,
+    top: Platform.OS === "ios" ? 86 : 40,
+    backgroundColor: "white",
+    width: 42,
+    height: 42,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 98,
+  },
   searchBar: {
     position: "absolute",
     top: Platform.OS === "ios" ? 80 : 40,
-    width: "90%",
+    width: "65%",
     alignSelf: "center",
     zIndex: 99,
     shadowColor: "#000",
@@ -645,6 +854,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#388e3c",
   },
+  selectedResourceMarker: {
+    backgroundColor: "#ff5252",
+    borderWidth: 2,
+    borderColor: "#d32f2f",
+  },
   currentLocationMarker: {
     width: 24,
     height: 24,
@@ -735,6 +949,10 @@ const styles = StyleSheet.create({
   detailContent: {
     flex: 1,
     paddingHorizontal: 10,
+    paddingBottom: 20,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   detailRow: {
     flexDirection: "row",
@@ -775,6 +993,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignSelf: "center",
     marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navigationButton: {
+    backgroundColor: "#4caf50",
+    marginTop: 8,
   },
   actionButtonText: {
     color: "white",

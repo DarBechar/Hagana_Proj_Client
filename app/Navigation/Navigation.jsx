@@ -11,6 +11,9 @@ import EventLogScreen from "../Screens/EventLogScreen";
 import { EmergencyContext, useEmergency } from "../Context/EmergencyContext";
 import EventDetailsScreen from "../Screens/EventDetailsScreen";
 import EventLogDetailsScreen from "../Screens/EventLogDetailsScreen";
+import SettingsScreen from "../Screens/SettingsScreen";
+import ResourcesScreen from "../Screens/ResourcesScreen";
+
 import {
   Ionicons,
   MaterialIcons,
@@ -32,6 +35,8 @@ function HomeStack() {
         component={EventLogDetailsScreen}
       />
       <Stack.Screen name="EventDetailsScreen" component={EventDetailsScreen} />
+      <Stack.Screen name="הגדרות" component={SettingsScreen} />
+      <Stack.Screen name="משאבים" component={ResourcesScreen} />
     </Stack.Navigator>
   );
 }
