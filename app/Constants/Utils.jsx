@@ -1,4 +1,5 @@
-const API_URL = "https://proj.ruppin.ac.il/bgroup4/test2/tar1/api/";
+// const API_URL = "https://proj.ruppin.ac.il/bgroup4/test2/tar1/api/";
+const API_URL = "http://51.17.244.13:8083/api/";
 const User = {
   id: "313334898",
   picture: "https://example.com/user.jpg",

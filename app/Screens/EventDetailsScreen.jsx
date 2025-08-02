@@ -226,14 +226,14 @@ export default function EventDetailsScreen() {
             style={styles.secondaryBtn}
             onPress={() => navigation.navigate("בית")}
           >
-            <Text style={styles.secondaryBtnText}>בחזרה לעמוד הבית</Text>
+            <Text style={styles.secondaryBtnText}>בחזרה</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.primaryBtn}
             onPress={() => navigation.navigate("הוספה")}
           >
-            <Text style={styles.primaryBtnText}>כפתור</Text>
+            <Text style={styles.primaryBtnText}>סגור אירוע</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

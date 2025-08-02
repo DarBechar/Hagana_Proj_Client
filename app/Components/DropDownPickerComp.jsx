@@ -36,7 +36,7 @@ const Dropdown = forwardRef(({ onChangeValue, onToggle, hasError }, ref) => {
 
   const fetchEventTypes = () => {
     setLoading(true);
-    fetch(`${API_URL}EventType`, {
+    fetch(`${API_URL}admin/eventtypes`, {
       method: "GET",
       headers: new Headers({
         "Content-Type": "application/json; charset=UTF-8",
@@ -57,8 +57,8 @@ const Dropdown = forwardRef(({ onChangeValue, onToggle, hasError }, ref) => {
         }
 
         const formattedData = result.map((item) => {
-          const label = item.eventTypeName;
-          const value = item.eventTypeCode;
+          const label = item.EventTypeName;
+          const value = item.EventTypeCode;
 
           return {
             label: String(label),

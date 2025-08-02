@@ -54,10 +54,10 @@ export default function EventComp() {
 
   // Track validation errors
   const [errors, setErrors] = useState({
-    eventTypeCode: false,
+    EventTypeCode: false,
     description: false,
   });
-
+מ
   //fetch data
   useEffect(() => {
     // Fetch tag data from the server when component mounts
@@ -87,8 +87,8 @@ export default function EventComp() {
       }
 
       const formattedTags = result.map((item) => ({
-        id: String(item.statusCode),
-        label: item.statusName,
+        id: String(item.EventStatusCode),
+        label: item.EventStatusName,
         initialSelected: false,
       }));
 
@@ -110,7 +110,7 @@ export default function EventComp() {
   const fetchAthorities = async () => {
     setIsAuthorityDataLoading(true);
     try {
-      const response = await fetch(`${API_URL}Authority`, {
+      const response = await fetch(`${API_URL}admin/authorities`, {
         method: "GET",
         headers: new Headers({
           "Content-Type": "application/json; charset=UTF-8",
@@ -129,8 +129,8 @@ export default function EventComp() {
       }
 
       const formattedAthority = result.map((item) => ({
-        id: String(item.authorityCode),
-        label: item.authorityName,
+        id: String(item.AuthorityId),
+        label: item.Name,
         initialSelected: false,
       }));
 
@@ -199,20 +199,22 @@ export default function EventComp() {
     setEventType(selectedEventType);
     setEventForm((prevState) => ({
       ...prevState,
-      eventTypeCode: selectedEventType,
+      EventTypeCode: selectedEventType,
       eventName: NewEventName,
     }));
 
     // If there was an error before, clear it when user selects a value
-    if (errors.eventTypeCode) {
+    if (errors.EventTypeCode) {
       setErrors((prev) => ({
         ...prev,
-        eventTypeCode: false,
+        EventTypeCode: false,
       }));
     }
   };
 
   const handleSubmit = () => {
+    const now = new Date().toISOString(); // זה ייתן פורמט נכון עם גרשיים
+
     // Reset previous errors
     setErrors({
       eventTypeCode: false,
@@ -222,12 +224,12 @@ export default function EventComp() {
     // Check for required fields
     let hasErrors = false;
     const newErrors = {
-      eventTypeCode: false,
+      EventTypeCode: false,
       description: false,
     };
 
-    if (!eventForm.eventTypeCode) {
-      newErrors.eventTypeCode = true;
+    if (!eventForm.EventTypeCode) {
+      newErrors.EventTypeCode = true;
       hasErrors = true;
     }
 
@@ -244,21 +246,26 @@ export default function EventComp() {
 
       const eventPayload = {
         eventCode: 0,
-        eventName: eventName || "New Event",
-        openingDate: new Date().toISOString(),
-        description: eventForm.description, // Fixed: Use the correct field name
+        eventName: `אירוע ${
+          eventForm.EventTypeCode
+        } - ${new Date().toLocaleDateString("he-IL")}`,
+        openingDate: now,
+        description: eventForm.description,
         attachedReports: [],
         creatorUserID: parseInt(User.id),
         eventStatusCode: eventForm.eventStatusCode,
         isActive: true,
-        activatedAt: new Date().toISOString(),
+        activatedAt: now,
         deactivatedAt: null,
         locationLatitude: eventForm.locationLatitude,
         locationLongitude: eventForm.locationLongitude,
         locationName: eventForm.locationName || "Unknown",
         affectedAreaRadius: 0,
       };
-
+      console.log("🔍 Validating payload:");
+      console.log("eventName:", eventPayload.eventName);
+      console.log("activatedAt:", eventPayload.activatedAt);
+      console.log("eventTypeCode:", eventPayload.EventTypeCode);
       fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -333,7 +340,7 @@ export default function EventComp() {
 
     // Reset errors
     setErrors({
-      eventTypeCode: false,
+      EventTypeCode: false,
       description: false,
     });
     if (mapRef.current) {
@@ -373,15 +380,15 @@ export default function EventComp() {
           <View style={{ marginTop: 10 }}></View>
           <Text style={styles.title}>
             סוג אירוע
-            {errors.eventTypeCode && <Text style={styles.errorText}> *</Text>}
+            {errors.EventTypeCode && <Text style={styles.errorText}> *</Text>}
           </Text>
           <Dropdown
             ref={dropdownRef}
             onToggle={handleDropdownToggle}
             onChangeValue={handleEventTypeChange}
-            hasError={errors.eventTypeCode}
+            hasError={errors.EventTypeCode}
           />
-          {errors.eventTypeCode && (
+          {errors.EventTypeCode && (
             <Text style={styles.errorMessage}>נא לבחור סוג אירוע</Text>
           )}
         </View>

@@ -5,14 +5,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import {
-  StyleSheet,
-  View,
-  TextInput,
-  Text,
-  Alert,
-  Button,
-} from "react-native";
+import { StyleSheet, View, TextInput, Text, Alert, Button } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 
@@ -63,8 +56,8 @@ const MapComp = forwardRef(({ setLocation }, ref) => {
         mapRef.current.animateToRegion(
           {
             ...defaultCoords,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
+            latitudeDelta: 36.978374,
+            longitudeDelta: 31.329402,
           },
           1000
         );

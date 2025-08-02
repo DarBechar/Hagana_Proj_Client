@@ -12,15 +12,17 @@ import {
   Animated,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
 } from "react-native";
 import MapView, { Marker, Callout } from "react-native-maps";
 import * as Location from "expo-location";
 import { MaterialIcons, FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
+import { API_URL } from "../Constants/Utils";
 
 const { width, height } = Dimensions.get("window");
-const CARD_HEIGHT = 300; // Increased height to show more content
+const CARD_HEIGHT = 300;
 const CARD_WIDTH = width * 0.8;
 
 const MapScreen = () => {
@@ -42,6 +44,7 @@ const MapScreen = () => {
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [markers, setMarkers] = useState([]);
+  const [equipmentLoading, setEquipmentLoading] = useState(false);
 
   // Animation values
   const modalTranslateY = useRef(new Animated.Value(CARD_HEIGHT)).current;
@@ -52,6 +55,7 @@ const MapScreen = () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         console.log("Permission to access location was denied");
+        Alert.alert("הרשאה נדחתה", "לא ניתן להשתמש במיקום הנוכחי שלך");
         setIsLoading(false);
         return;
       }
@@ -76,114 +80,73 @@ const MapScreen = () => {
           longitudeDelta: 0.01,
         });
 
-        // Load mock data
-        loadMockMarkers(latitude, longitude);
+        console.log("Got user location:", latitude, longitude);
       } catch (error) {
         console.error("Error getting location:", error);
+        Alert.alert("שגיאה", "לא ניתן לקבל את המיקום הנוכחי");
       } finally {
         setIsLoading(false);
       }
     })();
+
+    // Load equipment data from server
+    loadEquipmentFromServer();
   }, []);
 
-  // Load mock markers around the user's location
-  const loadMockMarkers = (centerLat, centerLng) => {
-    // Example marker data (would come from your API)
-    const mockMarkers = [
-      // {
-      //   id: "event1",
-      //   type: "event",
-      //   coordinate: {
-      //     latitude: centerLat + 0.002,
-      //     longitude: centerLng + 0.003,
-      //   },
-      //   title: "אירוע שריפה",
-      //   label: "שריפה",
-      //   description: "שריפה פעילה באזור בית העם",
-      //   priority: "high",
-      //   timestamp: new Date().toISOString(),
-      //   status: "active",
-      //   image: require("../../assets/images/Hagana_Logo.png"), // Replace with actual image
-      // },
-      {
-        id: "person1",
-        type: "person",
-        coordinate: {
-          latitude: centerLat - 0.001,
-          longitude: centerLng + 0.002,
+  // Load equipment data from server
+  const loadEquipmentFromServer = async () => {
+    setEquipmentLoading(true);
+    try {
+      const response = await fetch(`${API_URL}Resources`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          Accept: "application/json; charset=UTF-8",
         },
-        title: "יוסי כהן",
-        label: "יוסי כהן",
-        description: "ראש צוות כיבוי",
-        role: "ראש צוות",
-        specialty: "כיבוי אש",
-        phoneNumber: "050-1234567",
-        status: "responding",
-        lastUpdate: new Date().toISOString(),
-      },
-      {
-        id: "person2",
-        type: "person",
-        coordinate: {
-          latitude: centerLat + 0.001,
-          longitude: centerLng - 0.001,
-        },
-        title: "רונן אביב",
-        label: "רונן אביב",
-        description: "חבר צוות חילוץ",
-        role: "חובש",
-        specialty: "חילוץ",
-        phoneNumber: "050-7654321",
-        status: "standby",
-        lastUpdate: new Date().toISOString(),
-      },
-      {
-        id: "eq1",
-        type: "equipment",
-        coordinate: {
-          latitude: centerLat - 0.002,
-          longitude: centerLng - 0.002,
-        },
-        title: "ציוד חירום",
-        label: "אלונקות",
-        description: "מחסן ציוד חירום יישובי",
-        inventory: ["אלונקות", "ערכות עזרה ראשונה", "גנרטור"],
-        lastChecked: new Date().toISOString(),
-        status: "available",
-      },
-      {
-        id: "person3",
-        type: "person",
-        coordinate: {
-          latitude: centerLat - 0.001,
-          longitude: centerLng - 0.0015,
-        },
-        title: "שירה גולן",
-        label: "שירה גולן",
-        description: "חובשת מוסמכת",
-        role: "חובשת",
-        specialty: "רפואת חירום",
-        phoneNumber: "050-9876543",
-        status: "active",
-        lastUpdate: new Date().toISOString(),
-      },
-      {
-        id: "eq2",
-        type: "equipment",
-        coordinate: {
-          latitude: centerLat - 0.0015,
-          longitude: centerLng + 0.001,
-        },
-        title: "ציוד כיבוי",
-        label: "מטף כיבוי",
-        description: "ציוד כיבוי אש",
-        inventory: ["מטף כיבוי", "צינור כיבוי", "גלגלון"],
-        lastChecked: new Date().toISOString(),
-        status: "available",
-      },
-    ];
+      });
 
-    setMarkers(mockMarkers);
+      if (!response.ok) {
+        throw new Error(`Network response error: ${response.status}`);
+      }
+
+      const equipmentData = await response.json();
+      console.log("Equipment data received:", equipmentData);
+
+      // Transform server data to marker format
+      const equipmentMarkers = equipmentData.map((item) => ({
+        id: `equipment_${item.ResourcCode}`,
+        type: "equipment",
+        coordinate: {
+          latitude: item.Lat,
+          longitude: item.Longt,
+        },
+        title: item.ResourceName,
+        label: item.ResourceTypeName,
+        description: item.LocationDescription,
+        resourceCode: item.ResourcCode,
+        resourceType: item.ResourceTypeName,
+        location: item.LocationDescription,
+        contactName: item.ContactName,
+        contactPhone: item.ContactPhoneNumber,
+        teamName: item.TeamName,
+        cityName: item.CityName,
+        categoryName: item.CategoryName,
+        expirationDate: item.ExpirationDate,
+        status: "available", // Default status - you can add logic to determine actual status
+      }));
+
+      setMarkers(equipmentMarkers);
+      console.log(`Loaded ${equipmentMarkers.length} equipment markers`);
+    } catch (error) {
+      console.error("Error loading equipment data:", error);
+      Alert.alert(
+        "שגיאת טעינה",
+        "לא ניתן לטעון את נתוני הציוד. נא לנסות שוב מאוחר יותר.",
+        [{ text: "הבנתי", style: "default" }]
+      );
+    } finally {
+      setEquipmentLoading(false);
+    }
   };
 
   // Handle marker press to show details
@@ -239,30 +202,20 @@ const MapScreen = () => {
           },
           1000
         );
+      } else {
+        Alert.alert("לא נמצא", "לא נמצאה כתובת התואמת לחיפוש");
       }
     } catch (error) {
       console.error("Search error:", error);
+      Alert.alert("שגיאה", "אירעה שגיאה בחיפוש הכתובת");
     } finally {
       setSearchLoading(false);
     }
   };
 
-  // Get marker icon based on marker type
+  // Get marker icon for equipment
   const getMarkerIcon = (type) => {
-    switch (type) {
-      case "event":
-        return (
-          <MaterialIcons name="local-fire-department" size={24} color="red" />
-        );
-      case "person":
-        return <FontAwesome5 name="user" size={20} color="#0066ff" />;
-      case "equipment":
-        return (
-          <MaterialIcons name="medical-services" size={22} color="green" />
-        );
-      default:
-        return <Ionicons name="location" size={24} color="#777" />;
-    }
+    return <MaterialIcons name="medical-services" size={22} color="green" />;
   };
 
   // Return to user's current location
@@ -280,237 +233,141 @@ const MapScreen = () => {
     }
   };
 
-  // Format a timestamp to a readable format
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
+  // Format a date to a readable format
+  const formatDate = (dateString) => {
+    if (!dateString) return "לא זמין";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("he-IL", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  };
+
+  // Render equipment detail modal content
+  const renderEquipmentDetailContent = () => {
+    if (!selectedMarker) return null;
+
     return (
-      date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }) +
-      " " +
-      date.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" })
+      <>
+        <View style={styles.detailHeader}>
+          <View style={styles.markerIconContainer}>
+            {getMarkerIcon(selectedMarker.type)}
+          </View>
+          <View style={styles.detailTitleContainer}>
+            <Text style={styles.detailTitle}>{selectedMarker.title}</Text>
+            <Text style={styles.detailDescription}>
+              {selectedMarker.description}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.detailContent}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>סטטוס:</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor:
+                    selectedMarker.status === "available"
+                      ? "#e8f5e9"
+                      : "#ffebee",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      selectedMarker.status === "available"
+                        ? "#2e7d32"
+                        : "#c62828",
+                  },
+                ]}
+              >
+                {selectedMarker.status === "available" ? "זמין" : "לא זמין"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>סוג ציוד:</Text>
+            <Text style={styles.detailValue}>
+              {selectedMarker.resourceType}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>מיקום:</Text>
+            <Text style={styles.detailValue}>{selectedMarker.location}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>איש קשר:</Text>
+            <Text style={styles.detailValue}>{selectedMarker.contactName}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>טלפון:</Text>
+            <Text style={styles.detailValue}>
+              {selectedMarker.contactPhone}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>צוות:</Text>
+            <Text style={styles.detailValue}>{selectedMarker.teamName}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>עיר:</Text>
+            <Text style={styles.detailValue}>{selectedMarker.cityName}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>קטגוריה:</Text>
+            <Text style={styles.detailValue}>
+              {selectedMarker.categoryName}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>תאריך פקיעה:</Text>
+            <Text style={styles.detailValue}>
+              {formatDate(selectedMarker.expirationDate)}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              // You can add logic here to call the contact person
+              Alert.alert(
+                "התקשר",
+                `האם ברצונך להתקשר ל${selectedMarker.contactName}?`,
+                [
+                  { text: "ביטול", style: "cancel" },
+                  {
+                    text: "התקשר",
+                    onPress: () =>
+                      console.log("Calling:", selectedMarker.contactPhone),
+                  },
+                ]
+              );
+            }}
+          >
+            <Text style={styles.actionButtonText}>התקשר לאיש קשר</Text>
+          </TouchableOpacity>
+        </View>
+      </>
     );
   };
 
-  // Render marker detail modal content based on marker type
-  const renderMarkerDetailContent = () => {
-    if (!selectedMarker) return null;
-
-    const { type, title, description } = selectedMarker;
-
-    // Common header section for all marker types
-    const renderHeader = () => (
-      <View style={styles.detailHeader}>
-        <View style={styles.markerIconContainer}>{getMarkerIcon(type)}</View>
-        <View style={styles.detailTitleContainer}>
-          <Text style={styles.detailTitle}>{title}</Text>
-          <Text style={styles.detailDescription}>{description}</Text>
-        </View>
-      </View>
-    );
-
-    switch (type) {
-      case "event":
-        return (
-          <>
-            {renderHeader()}
-            <View style={styles.detailContent}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>סטטוס:</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor:
-                        selectedMarker.status === "active"
-                          ? "#ffebee"
-                          : "#e0f2f1",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      {
-                        color:
-                          selectedMarker.status === "active"
-                            ? "#c62828"
-                            : "#00796b",
-                      },
-                    ]}
-                  >
-                    {selectedMarker.status === "active" ? "פעיל" : "הסתיים"}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>עדיפות:</Text>
-                <Text
-                  style={[
-                    styles.priorityText,
-                    {
-                      color:
-                        selectedMarker.priority === "high"
-                          ? "#c62828"
-                          : selectedMarker.priority === "medium"
-                          ? "#ef6c00"
-                          : "#2e7d32",
-                    },
-                  ]}
-                >
-                  {selectedMarker.priority === "high"
-                    ? "גבוהה"
-                    : selectedMarker.priority === "medium"
-                    ? "בינונית"
-                    : "נמוכה"}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>עדכון אחרון:</Text>
-                <Text style={styles.detailValue}>
-                  {formatTime(selectedMarker.timestamp)}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.actionButton}>
-                <Text style={styles.actionButtonText}>פתח דיווח</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        );
-
-      case "person":
-        return (
-          <>
-            {renderHeader()}
-            <View style={styles.detailContent}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>סטטוס:</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor:
-                        selectedMarker.status === "responding"
-                          ? "#e3f2fd"
-                          : selectedMarker.status === "standby"
-                          ? "#f9fbe7"
-                          : selectedMarker.status === "active"
-                          ? "#e8f5e9"
-                          : "#e0f2f1",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      {
-                        color:
-                          selectedMarker.status === "responding"
-                            ? "#0d47a1"
-                            : selectedMarker.status === "standby"
-                            ? "#827717"
-                            : selectedMarker.status === "active"
-                            ? "#2e7d32"
-                            : "#00796b",
-                      },
-                    ]}
-                  >
-                    {selectedMarker.status === "responding"
-                      ? "בדרך לאירוע"
-                      : selectedMarker.status === "standby"
-                      ? "בכוננות"
-                      : selectedMarker.status === "active"
-                      ? "פעיל באירוע"
-                      : "זמין"}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>תפקיד:</Text>
-                <Text style={styles.detailValue}>{selectedMarker.role}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>התמחות:</Text>
-                <Text style={styles.detailValue}>
-                  {selectedMarker.specialty}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>טלפון:</Text>
-                <Text style={styles.detailValue}>
-                  {selectedMarker.phoneNumber}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>עדכון אחרון:</Text>
-                <Text style={styles.detailValue}>
-                  {formatTime(selectedMarker.lastUpdate)}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.actionButton}>
-                <Text style={styles.actionButtonText}>התקשר</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        );
-
-      case "equipment":
-        return (
-          <>
-            {renderHeader()}
-            <View style={styles.detailContent}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>סטטוס:</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor:
-                        selectedMarker.status === "available"
-                          ? "#e8f5e9"
-                          : "#ffebee",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      {
-                        color:
-                          selectedMarker.status === "available"
-                            ? "#2e7d32"
-                            : "#c62828",
-                      },
-                    ]}
-                  >
-                    {selectedMarker.status === "available" ? "זמין" : "לא זמין"}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>פריטים:</Text>
-                <View style={styles.inventoryList}>
-                  {selectedMarker.inventory.map((item, index) => (
-                    <Text key={index} style={styles.inventoryItemText}>
-                      • {item}
-                    </Text>
-                  ))}
-                </View>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>בדיקה אחרונה:</Text>
-                <Text style={styles.detailValue}>
-                  {formatTime(selectedMarker.lastChecked)}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.actionButton}>
-                <Text style={styles.actionButtonText}>דווח על חוסר ציוד</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        );
-
-      default:
-        return <Text style={styles.detailText}>אין מידע זמין</Text>;
-    }
+  // Refresh equipment data
+  const refreshEquipmentData = () => {
+    loadEquipmentFromServer();
   };
 
   // Loading screen
@@ -564,6 +421,19 @@ const MapScreen = () => {
         </BlurView>
       </View>
 
+      {/* Refresh Button */}
+      <TouchableOpacity
+        style={styles.refreshButton}
+        onPress={refreshEquipmentData}
+        disabled={equipmentLoading}
+      >
+        {equipmentLoading ? (
+          <ActivityIndicator size="small" color="#333" />
+        ) : (
+          <MaterialIcons name="refresh" size={24} color="#333" />
+        )}
+      </TouchableOpacity>
+
       {/* Map View */}
       <MapView
         ref={mapRef}
@@ -584,7 +454,7 @@ const MapScreen = () => {
           </Marker>
         )}
 
-        {/* Render all other markers */}
+        {/* Render equipment markers */}
         {markers.map((marker) => (
           <Marker
             key={marker.id}
@@ -599,16 +469,7 @@ const MapScreen = () => {
             onPress={() => onMarkerPress(marker)}
           >
             <View style={styles.markerWrapper}>
-              <View
-                style={[
-                  styles.markerContainer,
-                  marker.type === "event"
-                    ? styles.eventMarker
-                    : marker.type === "person"
-                    ? styles.personMarker
-                    : styles.equipmentMarker,
-                ]}
-              >
+              <View style={[styles.markerContainer, styles.equipmentMarker]}>
                 {getMarkerIcon(marker.type)}
               </View>
               <View style={styles.markerLabelContainer}>
@@ -627,6 +488,13 @@ const MapScreen = () => {
         <MaterialIcons name="my-location" size={24} color="#333" />
       </TouchableOpacity>
 
+      {/* Equipment count indicator */}
+      {markers.length > 0 && (
+        <View style={styles.countIndicator}>
+          <Text style={styles.countText}>{markers.length} פריטי ציוד</Text>
+        </View>
+      )}
+
       {/* Detail Modal */}
       {detailModalVisible && (
         <Animated.View
@@ -637,7 +505,7 @@ const MapScreen = () => {
         >
           <View style={styles.detailModalContent}>
             <View style={styles.detailModalHandle} />
-            {renderMarkerDetailContent()}
+            {renderEquipmentDetailContent()}
             <TouchableOpacity
               style={styles.closeButton}
               onPress={hideDetailModal}
@@ -670,12 +538,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
-    elevation: 5, // For Android shadow
+    elevation: 5,
   },
   blurView: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 40, // More oval shape
+    borderRadius: 40,
     paddingHorizontal: 15,
     paddingVertical: 10,
     overflow: "hidden",
@@ -695,6 +563,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  refreshButton: {
+    position: "absolute",
+    right: 16,
+    top: Platform.OS === "ios" ? 140 : 100,
+    backgroundColor: "white",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 98,
+  },
   currentLocationButton: {
     position: "absolute",
     right: 16,
@@ -710,6 +595,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+  },
+  countIndicator: {
+    position: "absolute",
+    bottom: 650,
+    alignSelf: "center",
+    backgroundColor: "rgba(150, 16, 255, 0.9)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  countText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
   },
   markerWrapper: {
     alignItems: "center",
@@ -740,16 +639,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
     textAlign: "center",
-  },
-  eventMarker: {
-    backgroundColor: "#ffcdd2",
-    borderWidth: 2,
-    borderColor: "#e53935",
-  },
-  personMarker: {
-    backgroundColor: "#bbdefb",
-    borderWidth: 2,
-    borderColor: "#1976d2",
   },
   equipmentMarker: {
     backgroundColor: "#c8e6c9",
@@ -849,21 +738,24 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 8,
+    paddingHorizontal: 5,
   },
   detailLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "bold",
     color: "#555",
-    marginLeft: 8,
     textAlign: "right",
+    width: 80,
   },
   detailValue: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#333",
     textAlign: "right",
+    flex: 1,
+    marginRight: 15,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -875,28 +767,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 14,
     fontWeight: "500",
-  },
-  priorityText: {
-    fontSize: 15,
-    fontWeight: "bold",
-  },
-  teamMembersList: {
-    alignItems: "flex-end",
-  },
-  teamMemberText: {
-    fontSize: 14,
-    color: "#333",
-    textAlign: "right",
-    marginBottom: 2,
-  },
-  inventoryList: {
-    alignItems: "flex-end",
-  },
-  inventoryItemText: {
-    fontSize: 14,
-    color: "#333",
-    textAlign: "right",
-    marginBottom: 2,
   },
   actionButton: {
     backgroundColor: "#9610FF",
@@ -910,6 +780,7 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "bold",
+    textAlign: "center",
   },
   loadingContainer: {
     flex: 1,

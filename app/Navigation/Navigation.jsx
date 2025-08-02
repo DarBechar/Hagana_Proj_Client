@@ -35,6 +35,7 @@ function HomeStack() {
     </Stack.Navigator>
   );
 }
+
 //Tab navigation
 function TabGroup() {
   const [hasActiveEmergency, setHasActiveEmergency] = useState(false);
@@ -45,7 +46,8 @@ function TabGroup() {
   const fetchEmergencyStatus = async () => {
     setIsLoading(true);
     try {
-      // Fetch active events from the API
+      console.log(`Checking for active events: ${API_URL}Event/active`);
+
       const response = await fetch(`${API_URL}Event/active`, {
         method: "GET",
         headers: {
@@ -54,42 +56,45 @@ function TabGroup() {
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`Network response error: ${response.status}`);
-      }
+      if (response.ok) {
+        // We have an active event (200 status)
+        const text = await response.text();
+        console.log("Active event response:", text);
 
-      // Check if the response is empty
-      const text = await response.text();
-      console.log("Raw response:", text);
-
-      if (text === null || text === "" || text === "null") {
-        // Empty response - no active events
-        console.log("No active events found");
-        setActiveEvent(null);
-        setHasActiveEmergency(false);
-      } else {
-        // Try to parse the response as JSON
-        try {
-          const event = JSON.parse(text);
-          console.log("Parsed event:", event);
-
-          if (event !== null) {
-            // We have an active event
-            console.log("Active event found");
+        if (text && text !== "null" && text !== "") {
+          try {
+            const event = JSON.parse(text);
+            console.log("✅ Active event found:", event);
             setActiveEvent(event);
             setHasActiveEmergency(true);
-          } else {
-            // No active event
-            console.log("Event is null");
+          } catch (parseError) {
+            console.error("Error parsing active event JSON:", parseError);
             setActiveEvent(null);
             setHasActiveEmergency(false);
           }
-        } catch (parseError) {
-          console.error("Error parsing JSON:", parseError);
-          // Handle the case where the response isn't valid JSON
+        } else {
+          console.log("Empty response - no active events");
           setActiveEvent(null);
           setHasActiveEmergency(false);
         }
+      } else if (response.status === 404) {
+        // 404 means no active events (this is normal)
+        try {
+          const errorText = await response.text();
+          const errorData = JSON.parse(errorText);
+          console.log(
+            "ℹ️ No active events:",
+            errorData.message || "לא נמצא אירוע פעיל"
+          );
+        } catch (e) {
+          console.log("ℹ️ No active events (404)");
+        }
+
+        setActiveEvent(null);
+        setHasActiveEmergency(false);
+      } else {
+        // Other errors (500, 403, etc.)
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
       console.error("Error fetching emergency status:", error);

@@ -21,47 +21,34 @@ export default function ContactsScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // Mock data for testing - will be replaced with API data
+  // Mock data for fallback
   const mockContacts = [
     {
-      id: "1",
-      name: "דוד כהן",
-      role: "אחראי אבטחה",
-      phone: "050-1234567",
-      image: "https://randomuser.me/api/portraits/men/1.jpg",
-      category: "emergency",
+      UserId: "1",
+      FirstName: "יוסי",
+      LastName: "כהן",
+      phoneNumber: "050-1234567",
+      Email: "yossi@example.com",
+      Role: "emergency",
+      specialty: "כיבוי אש",
     },
     {
-      id: "2",
-      name: "שרה לוי",
-      role: "רכזת מתנדבים",
-      phone: "052-7654321",
-      image: "https://randomuser.me/api/portraits/women/2.jpg",
-      category: "admin",
+      UserId: "2",
+      FirstName: "רחל",
+      LastName: "לוי",
+      phoneNumber: "050-2345678",
+      Email: "rachel@example.com",
+      Role: "volunteer",
+      specialty: "עזרה ראשונה",
     },
     {
-      id: "3",
-      name: "יוסי אברהם",
-      role: "רופא",
-      phone: "054-9876543",
-      image: "https://randomuser.me/api/portraits/men/3.jpg",
-      category: "emergency",
-    },
-    {
-      id: "4",
-      name: "מיכל גולן",
-      role: "מתנדבת",
-      phone: "053-1472583",
-      image: "https://randomuser.me/api/portraits/women/4.jpg",
-      category: "volunteer",
-    },
-    {
-      id: "5",
-      name: "רועי שמואלי",
-      role: "אחראי לוגיסטיקה",
-      phone: "058-3692581",
-      image: "https://randomuser.me/api/portraits/men/5.jpg",
-      category: "admin",
+      UserId: "3",
+      FirstName: "דוד",
+      LastName: "אברהם",
+      phoneNumber: "050-3456789",
+      Email: "david@example.com",
+      Role: "emergency",
+      specialty: "חילוץ",
     },
   ];
 
@@ -73,23 +60,45 @@ export default function ContactsScreen({ navigation }) {
   const filterContacts = useCallback(() => {
     let result = [...contacts];
 
+    console.log("Filtering contacts:", {
+      totalContacts: contacts.length,
+      selectedCategory,
+      searchQuery,
+      sampleContact: contacts[0],
+    });
+
     // Filter by category if not "all"
     if (selectedCategory !== "all") {
-      result = result.filter(
-        (contact) => contact.category === selectedCategory
-      );
+      result = result.filter((contact) => {
+        // Check both possible field names for role
+        const contactRole = contact.Role || contact.role || "";
+        const matches = contactRole === selectedCategory;
+        console.log(
+          `Contact ${contact.FirstName} ${contact.LastName} role: "${contactRole}", matches ${selectedCategory}: ${matches}`
+        );
+        return matches;
+      });
     }
 
     // Filter by search query if not empty
     if (searchQuery.trim() !== "") {
-      result = result.filter(
-        (contact) =>
-          contact.name.includes(searchQuery) ||
-          (contact.role && contact.role.includes(searchQuery)) ||
-          contact.phone.includes(searchQuery)
-      );
+      result = result.filter((contact) => {
+        const fullName = `${contact.FirstName || ""} ${
+          contact.LastName || ""
+        }`.toLowerCase();
+        const phone = (contact.phoneNumber || "").toLowerCase();
+        const role = (contact.Role || contact.role || "").toLowerCase();
+        const query = searchQuery.toLowerCase();
+
+        return (
+          fullName.includes(query) ||
+          phone.includes(query) ||
+          role.includes(query)
+        );
+      });
     }
 
+    console.log("Filtered result:", result.length, "contacts");
     return result;
   }, [contacts, searchQuery, selectedCategory]);
 
@@ -102,7 +111,7 @@ export default function ContactsScreen({ navigation }) {
     setLoading(true);
     try {
       // Try to fetch contacts from API
-      const response = await fetch(`${API_URL}Users`, {
+      const response = await fetch(`${API_URL}User`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -124,10 +133,23 @@ export default function ContactsScreen({ navigation }) {
         // Try to parse the response as JSON
         try {
           const data = JSON.parse(text);
-          console.log("Contacts fetched:", data);
+          console.log("Contacts fetched from server:", data);
 
           if (Array.isArray(data) && data.length > 0) {
-            setContacts(data);
+            // Transform the data to ensure consistent format
+            const transformedContacts = data.map((contact) => ({
+              ...contact,
+              // Ensure we have a role field - map from common server field names
+              Role:
+                contact.Role || contact.role || contact.userRole || "volunteer",
+              // Ensure we have a full name display
+              displayName: `${contact.FirstName || ""} ${
+                contact.LastName || ""
+              }`.trim(),
+            }));
+
+            console.log("Transformed contacts:", transformedContacts);
+            setContacts(transformedContacts);
           } else {
             console.log("Invalid contacts data, using mock data");
             setContacts(mockContacts);
@@ -154,6 +176,7 @@ export default function ContactsScreen({ navigation }) {
   };
 
   const handleCategoryChange = (category) => {
+    console.log("Category changed to:", category);
     setSelectedCategory(category);
   };
 
@@ -170,85 +193,136 @@ export default function ContactsScreen({ navigation }) {
     <ContactComp contact={item} onPress={handleContactPress} />
   );
 
+  // Get unique roles from contacts for dynamic category buttons
+  const getAvailableRoles = () => {
+    const roles = new Set();
+    contacts.forEach((contact) => {
+      const role = contact.Role || contact.role;
+      if (role) {
+        roles.add(role);
+      }
+    });
+    return Array.from(roles);
+  };
+
   // Extracted Header Component to prevent re-renders on search text change
-  const ListHeader = React.memo(() => (
-    <View style={styles.headerContainer}>
-      <Text style={styles.headerTitle}>אנשי קשר</Text>
+  const ListHeader = React.memo(() => {
+    const availableRoles = getAvailableRoles();
 
-      <View style={styles.searchContainer}>
-        <Ionicons
-          name="search"
-          size={20}
-          color="#666"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="חיפוש אנשי קשר..."
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-          placeholderTextColor="#999"
-          textAlign="right"
-        />
+    return (
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>אנשי קשר</Text>
+
+        <View style={styles.searchContainer}>
+          <Ionicons
+            name="search"
+            size={20}
+            color="#666"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="חיפוש אנשי קשר..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            placeholderTextColor="#999"
+            textAlign="right"
+          />
+        </View>
+
+        <View style={styles.categoriesContainer}>
+          <TouchableOpacity
+            style={[
+              styles.categoryButton,
+              selectedCategory === "all" && styles.activeCategory,
+            ]}
+            onPress={() => handleCategoryChange("all")}
+          >
+            <Text
+              style={
+                selectedCategory === "all"
+                  ? styles.activeCategoryText
+                  : styles.categoryText
+              }
+            >
+              הכל ({contacts.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.categoryButton,
+              selectedCategory === "emergency" && styles.activeCategory,
+            ]}
+            onPress={() => handleCategoryChange("emergency")}
+          >
+            <Text
+              style={
+                selectedCategory === "emergency"
+                  ? styles.activeCategoryText
+                  : styles.categoryText
+              }
+            >
+              צוות חירום (
+              {
+                contacts.filter((c) => (c.Role || c.role) === "emergency")
+                  .length
+              }
+              )
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.categoryButton,
+              selectedCategory === "volunteer" && styles.activeCategory,
+            ]}
+            onPress={() => handleCategoryChange("volunteer")}
+          >
+            <Text
+              style={
+                selectedCategory === "volunteer"
+                  ? styles.activeCategoryText
+                  : styles.categoryText
+              }
+            >
+              מתנדבים (
+              {
+                contacts.filter((c) => (c.Role || c.role) === "volunteer")
+                  .length
+              }
+              )
+            </Text>
+          </TouchableOpacity>
+
+          {/* Dynamic buttons for other roles found in data */}
+          {availableRoles
+            .filter((role) => !["emergency", "volunteer"].includes(role))
+            .map((role) => (
+              <TouchableOpacity
+                key={role}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === role && styles.activeCategory,
+                ]}
+                onPress={() => handleCategoryChange(role)}
+              >
+                <Text
+                  style={
+                    selectedCategory === role
+                      ? styles.activeCategoryText
+                      : styles.categoryText
+                  }
+                >
+                  {role} (
+                  {contacts.filter((c) => (c.Role || c.role) === role).length})
+                </Text>
+              </TouchableOpacity>
+            ))}
+        </View>
       </View>
-
-      <View style={styles.categoriesContainer}>
-        <TouchableOpacity
-          style={[
-            styles.categoryButton,
-            selectedCategory === "all" && styles.activeCategory,
-          ]}
-          onPress={() => handleCategoryChange("all")}
-        >
-          <Text
-            style={
-              selectedCategory === "all"
-                ? styles.activeCategoryText
-                : styles.categoryText
-            }
-          >
-            הכל
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.categoryButton,
-            selectedCategory === "emergency" && styles.activeCategory,
-          ]}
-          onPress={() => handleCategoryChange("emergency")}
-        >
-          <Text
-            style={
-              selectedCategory === "emergency"
-                ? styles.activeCategoryText
-                : styles.categoryText
-            }
-          >
-            צוות חירום
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.categoryButton,
-            selectedCategory === "volunteer" && styles.activeCategory,
-          ]}
-          onPress={() => handleCategoryChange("volunteer")}
-        >
-          <Text
-            style={
-              selectedCategory === "volunteer"
-                ? styles.activeCategoryText
-                : styles.categoryText
-            }
-          >
-            מתנדבים
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  ));
+    );
+  });
 
   if (loading && contacts.length === 0) {
     return (
@@ -264,11 +338,20 @@ export default function ContactsScreen({ navigation }) {
       <FlatList
         data={filteredContacts}
         renderItem={renderContactItem}
-        keyExtractor={(item) => item.userID.toString()}
+        keyExtractor={(item) =>
+          item.UserId?.toString() ||
+          item.id?.toString() ||
+          Math.random().toString()
+        }
         ListHeaderComponent={<ListHeader />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>{error || "לא נמצאו אנשי קשר"}</Text>
+            <Text style={styles.emptyText}>
+              {error ||
+                (searchQuery
+                  ? `לא נמצאו תוצאות עבור "${searchQuery}"`
+                  : "לא נמצאו אנשי קשר")}
+            </Text>
             <TouchableOpacity
               style={styles.retryButton}
               onPress={handleRefresh}
@@ -334,27 +417,29 @@ const styles = StyleSheet.create({
   },
   categoriesContainer: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     marginBottom: 8,
   },
   categoryButton: {
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 20,
     backgroundColor: "#f0f0f0",
-    marginHorizontal: 4,
+    marginHorizontal: 2,
+    marginVertical: 2,
   },
   activeCategory: {
     backgroundColor: "#9610FF",
   },
   categoryText: {
     color: "#666",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "500",
   },
   activeCategoryText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "500",
   },
   emptyContainer: {
@@ -379,5 +464,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "500",
+  },
+  debugContainer: {
+    backgroundColor: "#f0f0f0",
+    padding: 8,
+    borderRadius: 5,
+    marginTop: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
   },
 });

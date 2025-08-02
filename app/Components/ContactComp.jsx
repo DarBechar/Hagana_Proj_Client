@@ -34,14 +34,14 @@ export default function ContactComp({ contact, onPress }) {
 
       <View style={styles.infoContainer}>
         <Text style={styles.name}>
-          {contact.firstName + ` ` + contact.lastName}
+          {contact.FirstName + ` ` + contact.LastName}
         </Text>
-        <Text style={styles.role}>{contact.role || "מתנדב"}</Text>
-        <Text style={styles.phone}>{contact.phoneNumber}</Text>
+        <Text style={styles.role}>{contact.Role || "מתנדב"}</Text>
+        <Text style={styles.phone}>{contact.PhoneNumber}</Text>
       </View>
 
       <Image
-        source={{ uri: contact.picture || defaultImage }}
+        source={{ uri: contact.Picture || defaultImage }}
         style={styles.image}
       />
     </TouchableOpacity>
