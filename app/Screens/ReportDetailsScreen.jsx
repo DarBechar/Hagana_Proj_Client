@@ -65,7 +65,7 @@ const ReportDetailsScreen = () => {
         if (foundReport) {
           console.log("Found report:", foundReport.ReportCode);
 
-          // Format the server data to match our expected structure
+          // Format the server data to match our expected structure - עם כל השדות
           const formattedReport = {
             id: foundReport.ReportCode,
             reportCode: foundReport.ReportCode,
@@ -81,7 +81,7 @@ const ReportDetailsScreen = () => {
               foundReport.LocationDescription ||
               foundReport.LocationName ||
               "מיקום לא צוין",
-            // Additional fields from server
+            // Additional fields from server - הוספת השדות החסרים
             reportNotes: foundReport.ReportNotes,
             longitude:
               foundReport.LocationLongitude || foundReport.Longitude || 34.7818,
@@ -89,6 +89,13 @@ const ReportDetailsScreen = () => {
               foundReport.LocationLatitude || foundReport.Latitude || 32.0853,
             userFullName: foundReport.UserFullName,
             imageUrl: foundReport.ImageUrl,
+            // השדות החדשים שהשרת צריך
+            authorityCode: foundReport.AuthorityCode,
+            eventCode: foundReport.EventCode,
+            userID: foundReport.UserID,
+            eventTypeCode: foundReport.EventTypeCode,
+            reportTitle:
+              foundReport.ReportTitle || foundReport.EventTypeName || "דיווח",
           };
 
           setReport(formattedReport);
@@ -191,9 +198,9 @@ const ReportDetailsScreen = () => {
       case "medium":
         return "alert-circle";
       case "low":
-        return "info";
+        return "information-circle";
       default:
-        return "circle";
+        return "ellipse";
     }
   };
 
@@ -314,60 +321,140 @@ const ReportDetailsScreen = () => {
         {
           text: "סגור דיווח",
           style: "destructive",
-          onPress: async () => {
-            setIsClosingReport(true);
-
-            try {
-              // Call server API to close report
-              const updatedReport = {
-                ...report,
-                IsOpen: false, // Note the capital I to match server format
-              };
-
-              const response = await fetch(
-                `${API_URL}Report/${report.reportCode}`,
-                {
-                  method: "PUT",
-                  headers: {
-                    "Content-Type": "application/json; charset=UTF-8",
-                    Accept: "application/json; charset=UTF-8",
-                  },
-                  body: JSON.stringify(updatedReport),
-                }
-              );
-
-              if (response.ok) {
-                Alert.alert(
-                  "דיווח נסגר",
-                  "הדיווח נסגר בהצלחה ועבר למצב מטופל.",
-                  [
-                    {
-                      text: "אישור",
-                      onPress: () => {
-                        navigation.goBack();
-                      },
-                    },
-                  ]
-                );
-              } else {
-                const errorData = await response.text();
-                console.error("Server error:", response.status, errorData);
-                throw new Error(`Server error: ${response.status}`);
-              }
-            } catch (error) {
-              console.error("Error closing report:", error);
-              Alert.alert(
-                "שגיאה",
-                "לא ניתן לסגור את הדיווח כרגע. אנא נסה שוב מאוחר יותר.",
-                [{ text: "אישור" }]
-              );
-            } finally {
-              setIsClosingReport(false);
-            }
-          },
+          onPress: closeReport,
         },
       ]
     );
+  };
+
+  // פונקציה מתוקנת לסגירת דיווח
+  const closeReport = async () => {
+    setIsClosingReport(true);
+
+    try {
+      console.log(`Closing report with ID: ${report.reportCode}`);
+
+      // יצירת אובייקט עם כל הנתונים המעודכנים על בסיס המבנה של השרת
+      const updatedReportData = {
+        ReportCode: report.reportCode,
+        ReportDate: report.reportDate,
+        ReporterName: report.reporterName || "",
+        ReporterPhoneNumber: report.reporterPhoneNumber || "",
+        ReportDescription: report.reportDescription || "",
+        ReportNotes: report.reportNotes || "",
+        Longitude: parseFloat(report.longitude) || 0,
+        Latitude: parseFloat(report.latitude) || 0,
+        LocationDescription: report.locationDescription || "",
+        AuthorityCode: report.authorityCode || null,
+        AuthorityName: report.authorityName || "",
+        EventCode: report.eventCode || null,
+        UserID: report.userID || null,
+        UserFullName: report.userFullName || "",
+        EventTypeCode: report.eventTypeCode || null,
+        EventTypeName: report.eventTypeName || "",
+        IsOpen: false, // זה השדה החשוב - סגירת הדיווח
+        ReportTitle: report.reportTitle || report.eventTypeName || "דיווח", // השדה שחסר!
+        ReportDateTime: report.reportDate,
+        LocationLatitude: parseFloat(report.latitude) || 0,
+        LocationLongitude: parseFloat(report.longitude) || 0,
+        LocationName: report.locationDescription || "",
+        ImageUrl: report.imageUrl || "", // תיקון: שדה ריק במקום null
+      };
+
+      console.log(
+        "Sending updated report data:",
+        JSON.stringify(updatedReportData, null, 2)
+      );
+
+      // שליחת בקשה לשרת לסגירת הדיווח
+      const response = await fetch(`${API_URL}Report/${report.reportCode}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          Accept: "application/json; charset=UTF-8",
+        },
+        body: JSON.stringify(updatedReportData),
+      });
+
+      console.log(`Close report response status: ${response.status}`);
+
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log("Report closed successfully:", responseData);
+
+        // עדכון המידע המקומי
+        setReport((prev) => ({
+          ...prev,
+          isOpen: false,
+        }));
+
+        Alert.alert(
+          "דיווח נסגר בהצלחה",
+          "הדיווח נסגר בהצלחה ועבר למצב מטופל.",
+          [
+            {
+              text: "אישור",
+              onPress: () => {
+                // חזרה למסך הקודם ורענון הרשימה
+                navigation.goBack();
+              },
+            },
+          ]
+        );
+      } else {
+        // טיפול בשגיאות שרת
+        let errorMessage = "שגיאה לא צפויה";
+
+        try {
+          const errorData = await response.text();
+          console.error("Server error response:", errorData);
+
+          // נסה לפרסר כ-JSON אם אפשר
+          try {
+            const errorJson = JSON.parse(errorData);
+
+            // טיפול מיוחד בשגיאות validation
+            if (errorJson.errors) {
+              const validationErrors = [];
+              for (const [field, messages] of Object.entries(
+                errorJson.errors
+              )) {
+                validationErrors.push(`${field}: ${messages.join(", ")}`);
+              }
+              errorMessage = `שגיאות validation:\n${validationErrors.join(
+                "\n"
+              )}`;
+            } else {
+              errorMessage =
+                errorJson.message ||
+                errorJson.title ||
+                `שגיאת שרת: ${response.status}`;
+            }
+          } catch {
+            errorMessage = `שגיאת שרת: ${response.status}`;
+          }
+        } catch (parseError) {
+          console.error("Error parsing server response:", parseError);
+          errorMessage = `שגיאת שרת: ${response.status}`;
+        }
+
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error closing report:", error);
+
+      Alert.alert(
+        "שגיאה בסגירת הדיווח",
+        error.message ||
+          "לא ניתן לסגור את הדיווח כרגע. אנא נסה שוב מאוחר יותר.",
+        [
+          { text: "נסה שוב", onPress: closeReport },
+          { text: "ביטול", style: "cancel" },
+        ]
+      );
+    } finally {
+      setIsClosingReport(false);
+    }
   };
 
   // Loading state
@@ -443,7 +530,7 @@ const ReportDetailsScreen = () => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Status and Priority Card */}
+        {/* Status and Priority Card - עדכון עם סטטוס דינמי */}
         <View style={styles.statusCard}>
           <View style={styles.statusHeader}>
             <View style={styles.statusInfo}>
@@ -462,9 +549,25 @@ const ReportDetailsScreen = () => {
                   {getPriorityLabel(report.priority)}
                 </Text>
               </View>
-              <View style={styles.statusBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#4caf50" />
-                <Text style={styles.statusText}>פעיל</Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: report.isOpen ? "#e8f5e8" : "#f5f5f5" },
+                ]}
+              >
+                <Ionicons
+                  name={report.isOpen ? "checkmark-circle" : "close-circle"}
+                  size={16}
+                  color={report.isOpen ? "#4caf50" : "#666"}
+                />
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: report.isOpen ? "#4caf50" : "#666" },
+                  ]}
+                >
+                  {report.isOpen ? "פעיל" : "סגור"}
+                </Text>
               </View>
             </View>
             <Text style={styles.timeAgo}>{formatTime(report.reportDate)}</Text>
@@ -579,22 +682,30 @@ const ReportDetailsScreen = () => {
           <Text style={styles.dateText}>{formatDate(report.reportDate)}</Text>
         </View>
 
-        {/* Action Buttons */}
+        {/* Action Buttons - עדכון עם לוגיקה מותאמת */}
         <View style={styles.btnSection}>
-          <TouchableOpacity
-            style={[
-              styles.secondaryBtn,
-              isClosingReport && styles.closeButtonDisabled,
-            ]}
-            onPress={handleCloseReport}
-            disabled={isClosingReport}
-          >
-            {isClosingReport ? (
-              <Text style={styles.secondaryBtnText}>סוגר דיווח...</Text>
-            ) : (
-              <Text style={styles.secondaryBtnText}>סגור דיווח</Text>
-            )}
-          </TouchableOpacity>
+          {/* הצג את כפתור סגירת הדיווח רק אם הדיווח פעיל */}
+          {report.isOpen && (
+            <TouchableOpacity
+              style={[
+                styles.secondaryBtn,
+                isClosingReport && styles.closeButtonDisabled,
+              ]}
+              onPress={handleCloseReport}
+              disabled={isClosingReport}
+            >
+              {isClosingReport ? (
+                <View style={styles.loadingButtonContainer}>
+                  <ActivityIndicator size="small" color="#9610FF" />
+                  <Text style={[styles.secondaryBtnText, { marginLeft: 8 }]}>
+                    סוגר דיווח...
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.secondaryBtnText}>סגור דיווח</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.primaryBtn}
@@ -604,8 +715,11 @@ const ReportDetailsScreen = () => {
           </TouchableOpacity>
         </View>
 
+        {/* הודעת מידע מותאמת */}
         <Text style={styles.warningText}>
-          💡 ניתן ליצור אירוע חירום מהדיווח או לסגור אותו כמטופל
+          {report.isOpen
+            ? "💡 ניתן ליצור אירוע חירום מהדיווח או לסגור אותו כמטופל"
+            : "✅ דיווח זה נסגר ומטופל"}
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -685,10 +799,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 15,
-    backgroundColor: "#e8f5e8",
   },
   statusText: {
-    color: "#4caf50",
     fontSize: 14,
     fontWeight: "bold",
     marginLeft: 4,
@@ -853,6 +965,12 @@ const styles = StyleSheet.create({
   closeButtonDisabled: {
     backgroundColor: "#f0f0f0",
     borderColor: "#ccc",
+    opacity: 0.6,
+  },
+  loadingButtonContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   warningText: {
     fontSize: 12,
