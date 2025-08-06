@@ -20,7 +20,7 @@ import EmergencyAlertModal from "../Components/EmergencyAlertModal";
 import { useNavigation } from "@react-navigation/native";
 
 import User from "../Constants/Utils";
-import { fetchActiveReportsCount } from "../Constants/MockReportsData";
+import { API_URL } from "../Constants/Utils";
 
 const HomeScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -28,11 +28,11 @@ const HomeScreen = () => {
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const navigation = useNavigation();
 
-  // Mock data for open reports count
+  // Fetch active reports count from server
   useEffect(() => {
     fetchOpenReportsCount();
 
-    // Optional: Set up interval to refresh count every 10 seconds (for demo)
+    // Optional: Set up interval to refresh count every 10 seconds
     const interval = setInterval(fetchOpenReportsCount, 10000);
 
     // Cleanup interval on component unmount
@@ -43,14 +43,32 @@ const HomeScreen = () => {
     try {
       setIsLoadingReports(true);
 
-      // Use shared mock data
-      const count = await fetchActiveReportsCount();
+      // Call the server API to get active reports
+      const response = await fetch(`${API_URL}Report/active`, {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=UTF-8",
+          Accept: "application/json; charset=UTF-8",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Network response error: ${response.status}`);
+      }
+
+      const activeReports = await response.json();
+      const count = activeReports.length;
       setOpenReportsCount(count);
 
-      console.log(`Loaded: ${count} דיווחים פעילים`);
+      console.log(`Loaded from server: ${count} דיווחים פעילים`);
     } catch (error) {
-      console.error("Error fetching reports count:", error);
+      console.error("Error fetching reports from server:", error);
+
+      // Fallback to 0 if server fails
       setOpenReportsCount(0);
+
+      // Optional: Show user-friendly message
+      console.warn("Failed to load reports from server, showing 0 reports");
     } finally {
       setIsLoadingReports(false);
     }

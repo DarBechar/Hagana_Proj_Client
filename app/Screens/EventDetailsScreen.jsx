@@ -18,7 +18,6 @@ import {
 } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import { mockReports } from "../Constants/MockReportsData";
 
 const { width } = Dimensions.get("window");
 

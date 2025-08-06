@@ -1,9 +1,3 @@
-const filters = [
-  { key: "all", label: "הכל", icon: "list" },
-  { key: "high", label: "דחוף", icon: "warning", color: "#ff4444" },
-  { key: "medium", label: "בינוני", icon: "alert-circle", color: "#ff9800" },
-  { key: "low", label: "נמוך", icon: "info", color: "#4caf50" },
-];
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -23,8 +17,8 @@ import {
   MaterialIcons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { fetchActiveReports, mockReports } from "../Constants/MockReportsData";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { API_URL } from "../Constants/Utils";
 
 const ActiveReportsScreen = () => {
   const navigation = useNavigation();
@@ -35,9 +29,23 @@ const ActiveReportsScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
 
+  const filters = [
+    { key: "all", label: "הכל", icon: "list" },
+    { key: "high", label: "דחוף", icon: "warning", color: "#ff4444" },
+    { key: "medium", label: "בינוני", icon: "alert-circle", color: "#ff9800" },
+    { key: "low", label: "נמוך", icon: "info", color: "#4caf50" },
+  ];
+
   useEffect(() => {
     fetchReports();
   }, []);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchReports();
+    }, [])
+  );
 
   useEffect(() => {
     filterReports();
@@ -46,14 +54,88 @@ const ActiveReportsScreen = () => {
   const fetchReports = async () => {
     try {
       setIsLoading(true);
-      // Use shared mock data
-      const activeReports = await fetchActiveReports();
-      setReports(activeReports);
+
+      // Call the server API to get active reports
+      const response = await fetch(`${API_URL}Report/active`, {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=UTF-8",
+          Accept: "application/json; charset=UTF-8",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Network response error: ${response.status}`);
+      }
+
+      const activeReports = await response.json();
+
+      // Debug: Log the first report to see the structure
+      if (activeReports && activeReports.length > 0) {
+        console.log(
+          "First report from server:",
+          JSON.stringify(activeReports[0], null, 2)
+        );
+      }
+
+      // Map server data to our expected format
+      const formattedReports = activeReports.map((report) => ({
+        id: report.ReportCode, // Use ReportCode as id for navigation
+        reportCode: report.ReportCode,
+        reportDate: report.ReportDate || report.ReportDateTime,
+        reporterName: report.ReporterName || "לא צוין",
+        reporterPhoneNumber: report.ReporterPhoneNumber || "לא צוין",
+        reportDescription: report.ReportDescription || "אין תיאור",
+        eventTypeName: report.EventTypeName || "לא צוין",
+        authorityName: report.AuthorityName || "לא צוין",
+        isOpen: report.IsOpen !== false, // Note the capital I
+        priority: determinePriority(report.EventTypeName), // Determine priority based on event type
+        locationDescription:
+          report.LocationDescription || report.LocationName || "מיקום לא צוין",
+        // Additional fields from server
+        reportNotes: report.ReportNotes,
+        longitude: report.LocationLongitude || report.Longitude,
+        latitude: report.LocationLatitude || report.Latitude,
+        userFullName: report.UserFullName,
+        imageUrl: report.ImageUrl,
+      }));
+
+      setReports(formattedReports);
+      console.log(`Loaded ${formattedReports.length} reports from server`);
     } catch (error) {
-      console.error("Error fetching reports:", error);
-      Alert.alert("שגיאה", "לא ניתן לטעון את הדיווחים");
+      console.error("Error fetching reports from server:", error);
+      Alert.alert(
+        "שגיאת חיבור",
+        "לא ניתן לטעון את הדיווחים מהשרת.\nאנא בדוק את החיבור לאינטרנט ונסה שוב.",
+        [{ text: "אישור" }, { text: "נסה שוב", onPress: fetchReports }]
+      );
+
+      // Keep empty array if server fails
+      setReports([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper function to determine priority based on event type
+  const determinePriority = (eventType) => {
+    if (!eventType) return "low";
+
+    const eventTypeLower = eventType.toLowerCase();
+
+    if (
+      eventTypeLower.includes("שריפה") ||
+      eventTypeLower.includes("חירום") ||
+      eventTypeLower.includes("הצפה")
+    ) {
+      return "high";
+    } else if (
+      eventTypeLower.includes("תאונה") ||
+      eventTypeLower.includes("מפגע")
+    ) {
+      return "medium";
+    } else {
+      return "low";
     }
   };
 
@@ -64,32 +146,33 @@ const ActiveReportsScreen = () => {
   };
 
   const filterReports = () => {
-    let filtered = reports;
+    let filtered = reports || [];
 
     // Filter by priority
     if (selectedFilter !== "all") {
       filtered = filtered.filter(
-        (report) => report.priority === selectedFilter
+        (report) => report && report.priority === selectedFilter
       );
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
-      filtered = filtered.filter(
-        (report) =>
-          report.reportDescription
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          report.reporterName
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          report.eventTypeName
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          report.locationDescription
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase())
-      );
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((report) => {
+        if (!report) return false;
+
+        const description = (report.reportDescription || "").toLowerCase();
+        const reporterName = (report.reporterName || "").toLowerCase();
+        const eventType = (report.eventTypeName || "").toLowerCase();
+        const location = (report.locationDescription || "").toLowerCase();
+
+        return (
+          description.includes(query) ||
+          reporterName.includes(query) ||
+          eventType.includes(query) ||
+          location.includes(query)
+        );
+      });
     }
 
     setFilteredReports(filtered);
@@ -121,37 +204,81 @@ const ActiveReportsScreen = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-
-    if (diffInMinutes < 60) {
-      return `לפני ${diffInMinutes} דקות`;
-    } else if (diffInHours < 24) {
-      return `לפני ${diffInHours} שעות`;
-    } else {
-      return date.toLocaleDateString("he-IL", {
-        day: "2-digit",
-        month: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+  const getPriorityLabel = (priority) => {
+    switch (priority) {
+      case "high":
+        return "דחוף";
+      case "medium":
+        return "בינוני";
+      case "low":
+        return "נמוך";
+      default:
+        return "רגיל";
     }
   };
 
-  const closeReport = (reportId) => {
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return "זמן לא ידוע";
+
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "זמן לא ידוע";
+
+      const now = new Date();
+      const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+      const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+
+      if (diffInMinutes < 60) {
+        return `לפני ${diffInMinutes} דקות`;
+      } else if (diffInHours < 24) {
+        return `לפני ${diffInHours} שעות`;
+      } else {
+        const diffInDays = Math.floor(diffInHours / 24);
+        return `לפני ${diffInDays} ימים`;
+      }
+    } catch (error) {
+      console.warn("Error formatting date:", error);
+      return "זמן לא ידוע";
+    }
+  };
+
+  const closeReport = async (reportId, reportCode) => {
     Alert.alert("סגירת דיווח", "האם אתה בטוח שברצונך לסגור את הדיווח?", [
       { text: "ביטול", style: "cancel" },
       {
         text: "סגור דיווח",
         style: "destructive",
-        onPress: () => {
-          // Here you would call the API to close the report
-          setReports((prevReports) =>
-            prevReports.filter((report) => report.id !== reportId)
-          );
+        onPress: async () => {
+          try {
+            // Find the report to close
+            const reportToClose = reports.find((r) => r.id === reportId);
+            if (!reportToClose) return;
+
+            // Update report with isOpen = false
+            const updatedReport = { ...reportToClose, isOpen: false };
+
+            const response = await fetch(`${API_URL}Report/${reportCode}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json; charset=UTF-8",
+                Accept: "application/json; charset=UTF-8",
+              },
+              body: JSON.stringify(updatedReport),
+            });
+
+            if (response.ok) {
+              // Remove from local state
+              setReports((prevReports) =>
+                prevReports.filter((report) => report.id !== reportId)
+              );
+              Alert.alert("הצלחה", "הדיווח נסגר בהצלחה");
+            } else {
+              throw new Error(`Server error: ${response.status}`);
+            }
+          } catch (error) {
+            console.error("Error closing report:", error);
+            Alert.alert("שגיאה", "לא ניתן לסגור את הדיווח כרגע");
+          }
         },
       },
     ]);
@@ -161,14 +288,14 @@ const ActiveReportsScreen = () => {
     <TouchableOpacity
       style={styles.reportCard}
       onPress={() => {
-        // Navigate to report details
-        navigation.navigate("פרטי דיווח", { reportId: item.id });
+        // Navigate to report details using reportCode as the ID
+        navigation.navigate("פרטי דיווח", { reportId: item.reportCode });
       }}
       activeOpacity={0.7}
     >
       <View style={styles.reportHeader}>
         <View style={styles.reportHeaderLeft}>
-          <Text style={styles.reportId}>#{item.reportCode}</Text>
+          <Text style={styles.reportId}>#{item.reportCode || "N/A"}</Text>
           <View
             style={[
               styles.priorityBadge,
@@ -181,39 +308,37 @@ const ActiveReportsScreen = () => {
               color="white"
             />
             <Text style={styles.priorityText}>
-              {item.priority === "high"
-                ? "דחוף"
-                : item.priority === "medium"
-                ? "בינוני"
-                : "נמוך"}
+              {getPriorityLabel(item.priority)}
             </Text>
           </View>
         </View>
         <TouchableOpacity
           style={styles.closeButton}
-          onPress={() => closeReport(item.id)}
+          onPress={() => closeReport(item.id, item.reportCode)}
         >
           <Ionicons name="close-circle" size={24} color="#ff4444" />
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.eventType}>{item.eventTypeName}</Text>
+      <Text style={styles.eventType}>{item.eventTypeName || "לא צוין"}</Text>
       <Text style={styles.reportDescription} numberOfLines={3}>
-        {item.reportDescription}
+        {item.reportDescription || "אין תיאור זמין"}
       </Text>
 
       <View style={styles.reportInfo}>
         <View style={styles.infoRow}>
           <MaterialIcons name="location-on" size={16} color="#666" />
-          <Text style={styles.infoText}>{item.locationDescription}</Text>
+          <Text style={styles.infoText}>
+            {item.locationDescription || "מיקום לא צוין"}
+          </Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialIcons name="person" size={16} color="#666" />
-          <Text style={styles.infoText}>{item.reporterName}</Text>
+          <Text style={styles.infoText}>{item.reporterName || "לא צוין"}</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialIcons name="business" size={16} color="#666" />
-          <Text style={styles.infoText}>{item.authorityName}</Text>
+          <Text style={styles.infoText}>{item.authorityName || "לא צוין"}</Text>
         </View>
       </View>
 
@@ -233,13 +358,13 @@ const ActiveReportsScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={28} color="#333" />
+            <Ionicons name="arrow-forward" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>דיווחים פעילים</Text>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3d8bcd" />
-          <Text style={styles.loadingText}>טוען דיווחים...</Text>
+          <Text style={styles.loadingText}>טוען דיווחים מהשרת...</Text>
         </View>
       </SafeAreaView>
     );
@@ -255,7 +380,7 @@ const ActiveReportsScreen = () => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={28} color="#333" />
+          <Ionicons name="arrow-forward" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>דיווחים פעילים</Text>
       </View>
@@ -317,7 +442,9 @@ const ActiveReportsScreen = () => {
       <FlatList
         data={filteredReports}
         renderItem={renderReportItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item, index) =>
+          item.id ? item.id.toString() : index.toString()
+        }
         style={styles.reportsList}
         contentContainerStyle={styles.reportsListContent}
         showsVerticalScrollIndicator={false}
@@ -326,6 +453,7 @@ const ActiveReportsScreen = () => {
             refreshing={refreshing}
             onRefresh={onRefresh}
             colors={["#3d8bcd"]}
+            title="מרענן דיווחים..."
           />
         }
         ListEmptyComponent={
@@ -338,8 +466,11 @@ const ActiveReportsScreen = () => {
             <Text style={styles.emptyText}>
               {searchQuery
                 ? "לא נמצאו דיווחים התואמים לחיפוש"
-                : "אין דיווחים פעילים"}
+                : "אין דיווחים פעילים בשרת"}
             </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchReports}>
+              <Text style={styles.retryButtonText}>נסה שוב</Text>
+            </TouchableOpacity>
           </View>
         }
       />
@@ -538,6 +669,18 @@ const styles = StyleSheet.create({
     color: "#999",
     textAlign: "center",
     marginTop: 20,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#3d8bcd",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

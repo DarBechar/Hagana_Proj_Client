@@ -10,6 +10,7 @@ import {
   Alert,
   Linking,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import {
   Ionicons,
@@ -18,7 +19,7 @@ import {
 } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import { mockReports } from "../Constants/MockReportsData";
+import { API_URL } from "../Constants/Utils";
 
 const { width } = Dimensions.get("window");
 
@@ -29,39 +30,129 @@ const ReportDetailsScreen = () => {
 
   const [report, setReport] = useState(null);
   const [isClosingReport, setIsClosingReport] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
-    // Find the specific report
-    const foundReport = mockReports.find((r) => r.id === reportId);
-    setReport(foundReport);
+    fetchReportDetails();
   }, [reportId]);
 
-  // Mock coordinates for demo - in real app this would come from the report data
+  const fetchReportDetails = async () => {
+    try {
+      setIsLoading(true);
+
+      console.log("Fetching report with ID:", reportId);
+
+      // Get report details from server
+      const response = await fetch(`${API_URL}Report/active`, {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=UTF-8",
+          Accept: "application/json; charset=UTF-8",
+        }),
+      });
+
+      if (response.ok) {
+        const activeReports = await response.json();
+        console.log("Got reports from server, looking for reportId:", reportId);
+        console.log(
+          "Available report codes:",
+          activeReports.map((r) => r.ReportCode)
+        );
+
+        const foundReport = activeReports.find((r) => r.ReportCode == reportId);
+
+        if (foundReport) {
+          console.log("Found report:", foundReport.ReportCode);
+
+          // Format the server data to match our expected structure
+          const formattedReport = {
+            id: foundReport.ReportCode,
+            reportCode: foundReport.ReportCode,
+            reportDate: foundReport.ReportDate || foundReport.ReportDateTime,
+            reporterName: foundReport.ReporterName || "לא צוין",
+            reporterPhoneNumber: foundReport.ReporterPhoneNumber || "לא צוין",
+            reportDescription: foundReport.ReportDescription || "אין תיאור",
+            eventTypeName: foundReport.EventTypeName || "לא צוין",
+            authorityName: foundReport.AuthorityName || "לא צוין",
+            isOpen: foundReport.IsOpen !== false,
+            priority: determinePriority(foundReport.EventTypeName),
+            locationDescription:
+              foundReport.LocationDescription ||
+              foundReport.LocationName ||
+              "מיקום לא צוין",
+            // Additional fields from server
+            reportNotes: foundReport.ReportNotes,
+            longitude:
+              foundReport.LocationLongitude || foundReport.Longitude || 34.7818,
+            latitude:
+              foundReport.LocationLatitude || foundReport.Latitude || 32.0853,
+            userFullName: foundReport.UserFullName,
+            imageUrl: foundReport.ImageUrl,
+          };
+
+          setReport(formattedReport);
+          console.log("Report formatted and set:", formattedReport.reportCode);
+          return;
+        } else {
+          console.warn(`Report ${reportId} not found in active reports`);
+        }
+      } else {
+        console.error("Server response not ok:", response.status);
+      }
+
+      // If not found in active reports or server error
+      setReport(null);
+    } catch (error) {
+      console.error("Error fetching report details:", error);
+      Alert.alert("שגיאת חיבור", "לא ניתן לטעון את פרטי הדיווח מהשרת", [
+        { text: "חזור", onPress: () => navigation.goBack() },
+        { text: "נסה שוב", onPress: fetchReportDetails },
+      ]);
+      setReport(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper function to determine priority based on event type
+  const determinePriority = (eventType) => {
+    if (!eventType) return "low";
+
+    const eventTypeLower = eventType.toLowerCase();
+
+    if (
+      eventTypeLower.includes("שריפה") ||
+      eventTypeLower.includes("חירום") ||
+      eventTypeLower.includes("הצפה") ||
+      eventTypeLower.includes("רעידת אדמה")
+    ) {
+      return "high";
+    } else if (
+      eventTypeLower.includes("תאונה") ||
+      eventTypeLower.includes("מפגע")
+    ) {
+      return "medium";
+    } else {
+      return "low";
+    }
+  };
+
+  // Get report location from server data or default
   const getReportLocation = () => {
-    // Default location - can be customized based on report
-    const defaultLocation = {
+    if (report && report.latitude && report.longitude) {
+      return {
+        latitude: parseFloat(report.latitude),
+        longitude: parseFloat(report.longitude),
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+    }
+
+    // Default location fallback
+    return {
       latitude: 32.0853,
       longitude: 34.7818,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    };
-
-    // You can add logic here to return different coordinates based on the report
-    // For now, we'll use slightly different coordinates for each report for demo
-    const locationOffsets = {
-      1: { lat: 32.0853, lng: 34.7818 }, // Tel Aviv
-      2: { lat: 32.084, lng: 34.782 },
-      3: { lat: 32.086, lng: 34.7815 },
-      4: { lat: 32.0845, lng: 34.7825 },
-      5: { lat: 32.0855, lng: 34.781 },
-    };
-
-    const offset = locationOffsets[reportId] || locationOffsets[1];
-
-    return {
-      latitude: offset.lat,
-      longitude: offset.lng,
       latitudeDelta: 0.01,
       longitudeDelta: 0.01,
     };
@@ -107,33 +198,48 @@ const ReportDetailsScreen = () => {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("he-IL", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    try {
+      if (!dateString) return "תאריך לא ידוע";
+      const date = new Date(dateString);
+      return date.toLocaleDateString("he-IL", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      return "תאריך לא ידוע";
+    }
   };
 
   const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    try {
+      if (!dateString) return "זמן לא ידוע";
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+      const diffInMinutes = Math.floor((now - date) / (1000 * 60));
 
-    if (diffInMinutes < 60) {
-      return `לפני ${diffInMinutes} דקות`;
-    } else if (diffInHours < 24) {
-      return `לפני ${diffInHours} שעות`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `לפני ${diffInDays} ימים`;
+      if (diffInMinutes < 60) {
+        return `לפני ${diffInMinutes} דקות`;
+      } else if (diffInHours < 24) {
+        return `לפני ${diffInHours} שעות`;
+      } else {
+        const diffInDays = Math.floor(diffInHours / 24);
+        return `לפני ${diffInDays} ימים`;
+      }
+    } catch (error) {
+      return "זמן לא ידוע";
     }
   };
 
   const handleCall = (phoneNumber) => {
+    if (!phoneNumber || phoneNumber === "לא צוין") {
+      Alert.alert("שגיאה", "מספר הטלפון לא זמין");
+      return;
+    }
+
     Alert.alert("התקשרות", `האם ברצונך להתקשר ל-${phoneNumber}?`, [
       { text: "ביטול", style: "cancel" },
       {
@@ -146,14 +252,14 @@ const ReportDetailsScreen = () => {
   };
 
   const openLocation = () => {
-    // In a real app, this would open maps with the coordinates
     Alert.alert("פתיחת מפה מלאה", "האם ברצונך לפתוח את המיקום במפה מלאה?", [
       { text: "ביטול", style: "cancel" },
       {
         text: "פתח במפות",
         onPress: () => {
-          // This would typically open Google Maps or Apple Maps
-          console.log("Opening location in full map");
+          const location = getReportLocation();
+          const url = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
+          Linking.openURL(url);
         },
       },
     ]);
@@ -168,27 +274,31 @@ const ReportDetailsScreen = () => {
         {
           text: "צור אירוע",
           style: "default",
-          onPress: () => {
-            // Simulate event creation
-            Alert.alert(
-              "אירוע נוצר בהצלחה",
-              `אירוע חירום #${
-                1000 + report.id
-              } נוצר על בסיס הדיווח.\n\nהאירוע הועבר לטיפול הרשויות והופעל פרוטוקול החירום המתאים.`,
-              [
-                {
-                  text: "צפה באירוע",
-                  onPress: () => {
-                    // Navigate to event details or events list
-                    navigation.navigate("בית");
+          onPress: async () => {
+            try {
+              // In a real app, you would call your Event API here
+              Alert.alert(
+                "אירוע נוצר בהצלחה",
+                `אירוע חירום #${
+                  2000 + report.id
+                } נוצר על בסיס הדיווח.\n\nהאירוע הועבר לטיפול הרשויות והופעל פרוטוקול החירום המתאים.`,
+                [
+                  {
+                    text: "צפה באירוע",
+                    onPress: () => {
+                      navigation.navigate("בית");
+                    },
                   },
-                },
-                {
-                  text: "המשך",
-                  style: "cancel",
-                },
-              ]
-            );
+                  {
+                    text: "המשך",
+                    style: "cancel",
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error("Error creating event:", error);
+              Alert.alert("שגיאה", "לא ניתן ליצור אירוע כרגע");
+            }
           },
         },
       ]
@@ -204,28 +314,85 @@ const ReportDetailsScreen = () => {
         {
           text: "סגור דיווח",
           style: "destructive",
-          onPress: () => {
+          onPress: async () => {
             setIsClosingReport(true);
 
-            // Simulate API call to close report
-            setTimeout(() => {
-              Alert.alert("דיווח נסגר", "הדיווח נסגר בהצלחה ועבר למצב מטופל.", [
+            try {
+              // Call server API to close report
+              const updatedReport = {
+                ...report,
+                IsOpen: false, // Note the capital I to match server format
+              };
+
+              const response = await fetch(
+                `${API_URL}Report/${report.reportCode}`,
                 {
-                  text: "אישור",
-                  onPress: () => {
-                    // Navigate back and refresh the reports list
-                    navigation.goBack();
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json; charset=UTF-8",
+                    Accept: "application/json; charset=UTF-8",
                   },
-                },
-              ]);
+                  body: JSON.stringify(updatedReport),
+                }
+              );
+
+              if (response.ok) {
+                Alert.alert(
+                  "דיווח נסגר",
+                  "הדיווח נסגר בהצלחה ועבר למצב מטופל.",
+                  [
+                    {
+                      text: "אישור",
+                      onPress: () => {
+                        navigation.goBack();
+                      },
+                    },
+                  ]
+                );
+              } else {
+                const errorData = await response.text();
+                console.error("Server error:", response.status, errorData);
+                throw new Error(`Server error: ${response.status}`);
+              }
+            } catch (error) {
+              console.error("Error closing report:", error);
+              Alert.alert(
+                "שגיאה",
+                "לא ניתן לסגור את הדיווח כרגע. אנא נסה שוב מאוחר יותר.",
+                [{ text: "אישור" }]
+              );
+            } finally {
               setIsClosingReport(false);
-            }, 1500);
+            }
           },
         },
       ]
     );
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-forward" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>טוען פרטי דיווח...</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3d8bcd" />
+          <Text style={styles.loadingText}>טוען נתונים מהשרת...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state - report not found
   if (!report) {
     return (
       <SafeAreaView style={styles.container}>
@@ -235,7 +402,7 @@ const ReportDetailsScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={28} color="#333" />
+            <Ionicons name="arrow-forward" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>פרטי דיווח</Text>
         </View>
@@ -245,7 +412,10 @@ const ReportDetailsScreen = () => {
             size={80}
             color="#ff4444"
           />
-          <Text style={styles.errorText}>דיווח לא נמצא</Text>
+          <Text style={styles.errorText}>דיווח לא נמצא בשרת</Text>
+          <Text style={styles.errorSubText}>
+            הדיווח אולי נסגר או שאינו קיים יותר במערכת
+          </Text>
           <TouchableOpacity
             style={styles.backToListButton}
             onPress={() => navigation.goBack()}
@@ -267,7 +437,7 @@ const ReportDetailsScreen = () => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={28} color="#333" />
+          <Ionicons name="arrow-forward" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>דיווח #{report.reportCode}</Text>
       </View>
@@ -370,8 +540,20 @@ const ReportDetailsScreen = () => {
               <Text style={styles.infoLabel}>טלפון:</Text>
               <TouchableOpacity
                 onPress={() => handleCall(report.reporterPhoneNumber)}
+                disabled={
+                  !report.reporterPhoneNumber ||
+                  report.reporterPhoneNumber === "לא צוין"
+                }
               >
-                <Text style={[styles.infoValue, styles.phoneLink]}>
+                <Text
+                  style={[
+                    styles.infoValue,
+                    report.reporterPhoneNumber &&
+                    report.reporterPhoneNumber !== "לא צוין"
+                      ? styles.phoneLink
+                      : styles.phoneDisabled,
+                  ]}
+                >
                   {report.reporterPhoneNumber}
                 </Text>
               </TouchableOpacity>
@@ -612,6 +794,9 @@ const styles = StyleSheet.create({
     color: "#3d8bcd",
     textDecorationLine: "underline",
   },
+  phoneDisabled: {
+    color: "#999",
+  },
   authorityText: {
     fontSize: 18,
     fontWeight: "600",
@@ -623,7 +808,7 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlign: "right",
   },
-  // Button styles to match EventDetailsScreen
+  // Button styles
   btnSection: {
     flexDirection: "row",
     justifyContent: "center",
@@ -678,30 +863,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     lineHeight: 16,
   },
-  closeButtonDisabled: {
-    backgroundColor: "#ccc",
-  },
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   loadingContainer: {
-    flexDirection: "row",
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
   },
-  closeButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginRight: 8,
-  },
-  warningText: {
-    fontSize: 12,
-    color: "#ff6b35",
-    textAlign: "center",
-    marginTop: 12,
-    paddingHorizontal: 16,
-    lineHeight: 16,
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
   },
   errorContainer: {
     flex: 1,
@@ -713,7 +883,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#666",
     marginTop: 16,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  errorSubText: {
+    fontSize: 14,
+    color: "#999",
     marginBottom: 24,
+    textAlign: "center",
+    lineHeight: 20,
   },
   backToListButton: {
     backgroundColor: "#3d8bcd",
