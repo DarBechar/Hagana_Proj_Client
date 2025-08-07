@@ -20,6 +20,7 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { API_URL } from "../Constants/Utils";
+import { useEmergency } from "../Context/EmergencyContext";
 
 const { width } = Dimensions.get("window");
 
@@ -27,9 +28,12 @@ const ReportDetailsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { reportId } = route.params;
+  const { refreshEmergencyStatus, setActiveEvent, setHasActiveEmergency } =
+    useEmergency();
 
   const [report, setReport] = useState(null);
   const [isClosingReport, setIsClosingReport] = useState(false);
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
 
@@ -200,7 +204,7 @@ const ReportDetailsScreen = () => {
       case "low":
         return "information-circle";
       default:
-        return "ellipse";
+        return "ellipse-outline";
     }
   };
 
@@ -275,41 +279,196 @@ const ReportDetailsScreen = () => {
   const handleCreateEvent = () => {
     Alert.alert(
       "יצירת אירוע חירום",
-      `האם ברצונך ליצור אירוע חירום על בסיס דיווח #${report.reportCode}?\n\nפעולה זו תיצור אירוע פעיל חדש ותתחיל הפעלת פרוטוקולי חירום.`,
+      `האם ברצונך ליצור אירוע חירום על בסיס דיווח #${report.reportCode}?\n\nפעולה זו תיצור אירוع פעיל חדש ותתחיל הפעלת פרוטוקולי חירום.`,
       [
         { text: "ביטול", style: "cancel" },
         {
           text: "צור אירוע",
           style: "default",
-          onPress: async () => {
-            try {
-              // In a real app, you would call your Event API here
-              Alert.alert(
-                "אירוע נוצר בהצלחה",
-                `אירוע חירום #${
-                  2000 + report.id
-                } נוצר על בסיס הדיווח.\n\nהאירוע הועבר לטיפול הרשויות והופעל פרוטוקול החירום המתאים.`,
-                [
-                  {
-                    text: "צפה באירוע",
-                    onPress: () => {
-                      navigation.navigate("בית");
-                    },
-                  },
-                  {
-                    text: "המשך",
-                    style: "cancel",
-                  },
-                ]
-              );
-            } catch (error) {
-              console.error("Error creating event:", error);
-              Alert.alert("שגיאה", "לא ניתן ליצור אירוע כרגע");
-            }
-          },
+          onPress: createEventFromReport,
         },
       ]
     );
+  };
+
+  const createEventFromReport = async () => {
+    setIsCreatingEvent(true);
+
+    try {
+      console.log(`Creating event from report: ${report.reportCode}`);
+
+      const now = new Date().toISOString();
+
+      // מבנה הנתונים המתוקן לפי המבנה המדויק של השרת
+      const eventPayload = {
+        eventCode: 0, // יוגדר על ידי השרת
+        eventName: `אירוע חירום - ${report.eventTypeName}`,
+        openingDate: now,
+        description: `אירוע חירום שנוצר מדיווח #${report.reportCode}\n\nתיאור מקורי: ${report.reportDescription}`,
+        creatorUserID: String(report.userID || "1"), // string כמו בדוגמה
+        eventStatusCode: 5, // סטטוס "חירום"
+        isActive: true,
+        activatedAt: now,
+        deactivatedAt: null, // null כי האירוע פעיל
+        locationLatitude: parseFloat(report.latitude) || 32.0853,
+        locationLongitude: parseFloat(report.longitude) || 34.7818,
+        locationName: report.locationDescription || "מיקום מהדיווח",
+        affectedAreaRadius: 1000, // רדיוס השפעה
+        eventTypeCode: report.eventTypeCode || 0, // קוד סוג האירוע
+      };
+
+      console.log("Event payload:", JSON.stringify(eventPayload, null, 2));
+
+      const response = await fetch(`${API_URL}Event`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      console.log(`Create event response status: ${response.status}`);
+
+      if (response.ok) {
+        const newEvent = await response.json();
+        console.log("Event created successfully:", newEvent);
+
+        // וודא שהאירוע מכיל את כל הפרטים הדרושים
+        const completeEvent = {
+          ...newEvent,
+          // וודא שכל השדות הדרושים קיימים
+          eventCode: newEvent.eventCode || newEvent.EventCode,
+          eventName:
+            newEvent.eventName ||
+            newEvent.EventName ||
+            `אירוע חירום - ${report.eventTypeName}`,
+          description:
+            newEvent.description ||
+            `אירוע חירום שנוצר מדיווח #${report.reportCode}\n\nתיאור מקורי: ${report.reportDescription}`,
+          locationLatitude:
+            newEvent.locationLatitude || parseFloat(report.latitude) || 32.0853,
+          locationLongitude:
+            newEvent.locationLongitude ||
+            parseFloat(report.longitude) ||
+            34.7818,
+          locationName:
+            newEvent.locationName ||
+            report.locationDescription ||
+            "מיקום מהדיווח",
+          eventStatusCode: newEvent.eventStatusCode || 5, // חירום
+          isActive: newEvent.isActive !== false,
+          creatorUserID: newEvent.creatorUserID || report.userID,
+          eventTypeCode: newEvent.eventTypeCode || report.eventTypeCode,
+          openingDate: newEvent.openingDate || new Date().toISOString(),
+          activatedAt: newEvent.activatedAt || new Date().toISOString(),
+          deactivatedAt: newEvent.deactivatedAt || null,
+          affectedAreaRadius: newEvent.affectedAreaRadius || 1000,
+        };
+
+        console.log(
+          "Complete event object:",
+          JSON.stringify(completeEvent, null, 2)
+        );
+
+        // נסה לסגור את הדיווח אוטומטית לפני עדכון ה-Context
+        let reportClosedSuccessfully = false;
+        try {
+          console.log("Auto-closing report after event creation...");
+          await closeReportSilently();
+          reportClosedSuccessfully = true;
+          console.log("Report closed successfully after event creation");
+        } catch (closeError) {
+          console.warn(
+            "Failed to auto-close report after event creation:",
+            closeError
+          );
+          // נמשיך גם אם סגירת הדיווח נכשלה
+        }
+
+        // עדכון מיידי של ה-Context עם האירוע המלא
+        console.log("Updating Context with complete event...");
+        setActiveEvent(completeEvent);
+        setHasActiveEmergency(true);
+
+        // רענון נוסף של הסטטוס כדי להבטיח סינכרון עם השרת
+        setTimeout(() => {
+          console.log("Refreshing emergency status from server...");
+          refreshEmergencyStatus();
+        }, 2000);
+
+        const successMessage = reportClosedSuccessfully
+          ? `אירוע חירום #${completeEvent.eventCode} נוצר על בסיס הדיווח.\n\nהדיווח נסגר אוטומטית והאירוע הועבר לטיפול הרשויות.`
+          : `אירוע חירום #${completeEvent.eventCode} נוצר בהצלחה.\n\n⚠️ הדיווח לא נסגר אוטומטית - יש לסגור אותו ידנית.`;
+
+        Alert.alert("אירוע נוצר בהצלחה", successMessage, [
+          {
+            text: "צפה באירוע",
+            onPress: () => {
+              // ניווט לאירוע החדש עם האירוע המלא
+              navigation.navigate("EventDetailsScreen", {
+                event: completeEvent,
+              });
+            },
+          },
+          {
+            text: "חזור לבית",
+            onPress: () => {
+              navigation.navigate("בית");
+            },
+          },
+        ]);
+      } else {
+        // טיפול בשגיאות שרת
+        let errorMessage = "שגיאה לא צפויה";
+
+        try {
+          const errorData = await response.text();
+          console.error("Server error response:", errorData);
+
+          try {
+            const errorJson = JSON.parse(errorData);
+
+            // טיפול מיוחד בשגיאות validation
+            if (errorJson.errors) {
+              const validationErrors = [];
+              for (const [field, messages] of Object.entries(
+                errorJson.errors
+              )) {
+                validationErrors.push(`${field}: ${messages.join(", ")}`);
+              }
+              errorMessage = `שגיאות validation:\n${validationErrors.join(
+                "\n"
+              )}`;
+            } else {
+              errorMessage =
+                errorJson.message ||
+                errorJson.title ||
+                `שגיאת שרת: ${response.status}`;
+            }
+          } catch {
+            errorMessage = `שגיאת שרת: ${response.status}`;
+          }
+        } catch (parseError) {
+          console.error("Error parsing server response:", parseError);
+          errorMessage = `שגיאת שרת: ${response.status}`;
+        }
+
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error creating event:", error);
+      Alert.alert(
+        "שגיאה ביצירת אירוע",
+        error.message || "לא ניתן ליצור אירוע חירום כרגע. נסה שוב מאוחר יותר.",
+        [
+          { text: "נסה שוב", onPress: createEventFromReport },
+          { text: "ביטול", style: "cancel" },
+        ]
+      );
+    } finally {
+      setIsCreatingEvent(false);
+    }
   };
 
   const handleCloseReport = () => {
@@ -325,6 +484,154 @@ const ReportDetailsScreen = () => {
         },
       ]
     );
+  };
+
+  // פונקציה לסגירת דיווח בשקט (בלי הודעות למשתמש)
+  const closeReportSilently = async () => {
+    console.log("Starting silent report closure...");
+
+    const updatedReportData = {
+      ReportCode: report.reportCode,
+      ReportDate: report.reportDate,
+      ReporterName: report.reporterName || "",
+      ReporterPhoneNumber: report.reporterPhoneNumber || "",
+      ReportDescription: report.reportDescription || "",
+      ReportNotes: report.reportNotes || "",
+      Longitude: parseFloat(report.longitude) || 0,
+      Latitude: parseFloat(report.latitude) || 0,
+      LocationDescription: report.locationDescription || "",
+      AuthorityCode: report.authorityCode || null,
+      AuthorityName: report.authorityName || "",
+      EventCode: report.eventCode || null,
+      UserID: report.userID || null,
+      UserFullName: report.userFullName || "",
+      EventTypeCode: report.eventTypeCode || null,
+      EventTypeName: report.eventTypeName || "",
+      IsOpen: false, // סגירת הדיווח
+      ReportTitle: report.reportTitle || report.eventTypeName || "דיווח",
+      ReportDateTime: report.reportDate,
+      LocationLatitude: parseFloat(report.latitude) || 0,
+      LocationLongitude: parseFloat(report.longitude) || 0,
+      LocationName: report.locationDescription || "",
+      ImageUrl: report.imageUrl || "",
+    };
+
+    console.log(
+      "Closing report with data:",
+      JSON.stringify(updatedReportData, null, 2)
+    );
+
+    // נסה כמה אפשרויות לסגירת דיווח
+    const attemptReportClose = async (endpoint, method, data) => {
+      console.log(`🔄 Attempting: ${method} ${endpoint}`);
+      console.log(`📄 Data:`, JSON.stringify(data, null, 2));
+
+      const response = await fetch(endpoint, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          Accept: "application/json; charset=UTF-8",
+        },
+        body: JSON.stringify(data),
+      });
+
+      console.log(`📊 Response: ${response.status} ${response.statusText}`);
+
+      if (response.ok) {
+        try {
+          const responseData = await response.json();
+          console.log("✅ Success response data:", responseData);
+        } catch (e) {
+          console.log("✅ Success (no JSON response)");
+        }
+      } else {
+        try {
+          const errorText = await response.text();
+          console.log(`❌ Error response: ${errorText}`);
+        } catch (e) {
+          console.log(`❌ Error ${response.status} (no response text)`);
+        }
+      }
+
+      return response;
+    };
+
+    // רשימת אפשרויות לנסות
+    const closeAttempts = [
+      // נסה PUT עם הנתונים המלאים
+      () =>
+        attemptReportClose(
+          `${API_URL}Report/${report.reportCode}`,
+          "PUT",
+          updatedReportData
+        ),
+      // נסה PATCH עם רק השדות הדרושים
+      () =>
+        attemptReportClose(`${API_URL}Report/${report.reportCode}`, "PATCH", {
+          ReportCode: report.reportCode,
+          IsOpen: false,
+        }),
+      // נסה endpoint מיוחד לסגירה
+      () =>
+        attemptReportClose(
+          `${API_URL}Report/${report.reportCode}/close`,
+          "POST",
+          { ReportCode: report.reportCode }
+        ),
+      // נסה PUT ללא ה-ID בנתיב
+      () => attemptReportClose(`${API_URL}Report`, "PUT", updatedReportData),
+      // נסה עם endpoint active reports
+      () =>
+        attemptReportClose(`${API_URL}Report/close`, "POST", {
+          ReportCode: report.reportCode,
+        }),
+      // נסה PATCH פשוט יותר
+      () =>
+        attemptReportClose(`${API_URL}Report`, "PATCH", {
+          ReportCode: report.reportCode,
+          IsOpen: false,
+          ReportTitle: report.reportTitle || report.eventTypeName || "דיווח",
+        }),
+    ];
+
+    let lastError;
+
+    // נסה את כל האפשרויות
+    for (let i = 0; i < closeAttempts.length; i++) {
+      try {
+        const response = await closeAttempts[i]();
+
+        if (response.ok) {
+          console.log(`Report closed successfully with attempt ${i + 1}`);
+
+          // עדכון המידע המקומי
+          setReport((prev) => ({
+            ...prev,
+            isOpen: false,
+          }));
+
+          return true;
+        } else if (response.status !== 404 && response.status !== 405) {
+          // אם זה לא 404 או 405, נדפיס את השגיאה
+          const errorText = await response.text();
+          console.warn(
+            `Attempt ${i + 1} failed with ${response.status}:`,
+            errorText
+          );
+          lastError = new Error(`${response.status}: ${errorText}`);
+        }
+      } catch (error) {
+        console.warn(`Attempt ${i + 1} failed with error:`, error.message);
+        lastError = error;
+      }
+    }
+
+    // אם כל הניסיונות נכשלו
+    console.error(
+      "All attempts to close report failed. Last error:",
+      lastError
+    );
+    throw lastError || new Error("Failed to close report - all methods failed");
   };
 
   // פונקציה מתוקנת לסגירת דיווח
@@ -467,7 +774,7 @@ const ReportDetailsScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-forward" size={24} color="#333" />
+            <Ionicons name="chevron-back" size={28} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>טוען פרטי דיווח...</Text>
         </View>
@@ -489,7 +796,7 @@ const ReportDetailsScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-forward" size={24} color="#333" />
+            <Ionicons name="chevron-back" size={28} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>פרטי דיווח</Text>
         </View>
@@ -524,7 +831,7 @@ const ReportDetailsScreen = () => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-forward" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={28} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>דיווח #{report.reportCode}</Text>
       </View>
@@ -708,10 +1015,23 @@ const ReportDetailsScreen = () => {
           )}
 
           <TouchableOpacity
-            style={styles.primaryBtn}
+            style={[
+              styles.primaryBtn,
+              isCreatingEvent && styles.primaryBtnDisabled,
+            ]}
             onPress={handleCreateEvent}
+            disabled={isCreatingEvent}
           >
-            <Text style={styles.primaryBtnText}>צור אירוע חירום</Text>
+            {isCreatingEvent ? (
+              <View style={styles.loadingButtonContainer}>
+                <ActivityIndicator size="small" color="white" />
+                <Text style={[styles.primaryBtnText, { marginLeft: 8 }]}>
+                  יוצר אירוע...
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.primaryBtnText}>צור אירוע חירום</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -939,6 +1259,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#9610FF",
     minWidth: 150,
   },
+  primaryBtnDisabled: {
+    backgroundColor: "#ccc",
+    opacity: 0.6,
+  },
   primaryBtnText: {
     color: "white",
     fontSize: 16,
@@ -1021,6 +1345,22 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  closedReportContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    backgroundColor: "#e8f5e8",
+    borderRadius: 30,
+    minWidth: 200,
+  },
+  closedReportText: {
+    color: "#4caf50",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
   },
 });
 
